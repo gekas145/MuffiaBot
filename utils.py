@@ -1,4 +1,3 @@
-import json
 from enum import Enum
 
 class GameStatus(Enum):
@@ -18,6 +17,8 @@ class Player:
         self.name = name
         self.alive = True
         self.role = None
+        self.voted = False
+        self.vote_message_id = None
     
     def __eq__(self, __o):
         if isinstance(__o, int):

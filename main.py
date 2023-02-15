@@ -12,6 +12,8 @@ game_status = GameStatus.IDLE
 players = []
 mafioso = []
 chat_id = None
+max_voters = 0
+voted = 0
 
 
 async def help(update, context):
@@ -113,25 +115,58 @@ def reset_globals():
     global players
     global chat_id
     global mafioso
+    global max_voters
+    global voted
 
     game_status = GameStatus.IDLE
     players = []
     mafioso = []
     chat_id = None
+    max_voters = 0
+    voted = 0
 
 
 async def night(context):
+    global max_voters
+    max_voters = len(mafioso)
+
     await context.bot.send_message(chat_id=chat_id, text='Night 1 begins')
 
     reply_markup = build_mafiosi_keyboard()
     for m in mafioso:
-        await context.bot.send_message(chat_id=m.id, text='Choose victim: ', reply_markup=reply_markup)
+        message = await context.bot.send_message(chat_id=m.id, text='Choose victim: ', 
+                                                           reply_markup=reply_markup)
+        m.vote_message_id = message.message_id
+    
+    context.job_queue.run_once(day, 10, name=str(chat_id) + '_day')
+
+
+async def day(context):
+    for m in mafioso:
+        if not m.voted:
+            await context.bot.edit_message_text(chat_id=m.id, 
+                                                message_id=m.vote_message_id,
+                                                text='Voting time expired')
+        m.voted = False
+        m.vote_message_id = None
+
+    await context.bot.send_message(chat_id=chat_id, text='Day 1 begins')
 
 
 async def mafiosi_callback(update, context):
+    global voted
+
     query = update.callback_query
     await query.answer()
     await query.edit_message_text(text=f'You selected: {query.data}')
+
+    i = mafioso.index(query.from_user.id)
+    mafioso[i].voted = True
+
+    voted += 1
+    if voted == max_voters:
+        remove_job_if_exists(str(chat_id) + '_day', context)
+        context.job_queue.run_once(day, 1)
 
 
 def build_mafiosi_keyboard():
