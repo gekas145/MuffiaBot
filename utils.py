@@ -6,9 +6,9 @@ class GameStatus(Enum):
     RUNNING = 2
 
 
-class PlayerRole(Enum):
-    INNOCENT = 0
-    MAFIOSO = 1
+class PlayerRole(str, Enum):
+    INNOCENT = 'innocent'
+    MAFIOSO = 'mafioso'
 
 
 class Player:
@@ -19,9 +19,18 @@ class Player:
         self.role = None
         self.voted = False
         self.vote_message_id = None
+        self.times_chosen = 0
     
     def __eq__(self, __o):
         if isinstance(__o, int):
             return __o == self.id
+
+        if isinstance(__o, Player):
+            return __o.id == self.id
+            
         return False
+    
+    def reset_vote_data(self):
+        self.voted = False
+        self.vote_message_id = None
         
