@@ -72,11 +72,15 @@ class Chat:
         victims = [p for p in self.players if p.id not in self.mafioso]
         keyboard = [[InlineKeyboardButton(vi.name, 
                      callback_data=str(self.id) + '_maf_' + str(vi.id))] for vi in victims]
+        keyboard.append([InlineKeyboardButton('Skip vote', 
+                                               callback_data=str(self.id) + '_maf_' + '0')])
         return InlineKeyboardMarkup(keyboard)
     
     def build_general_keyboard(self, id):
         keyboard = [[InlineKeyboardButton(p.name, 
                      callback_data=str(self.id) + '_dayvote_' + str(p.id))] for p in self.players if p.id != id]
+        keyboard.append([InlineKeyboardButton('Skip vote', 
+                                               callback_data=str(self.id) + '_dayvote_' + '0')])
         return InlineKeyboardMarkup(keyboard)
     
     def get_victim(self):

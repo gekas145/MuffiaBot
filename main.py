@@ -22,7 +22,9 @@ async def start(update, context):
     global chats
     chat_id = update.effective_chat.id
 
-    if chat_id not in chats:
+    if chat_id > 0:
+        message_text = game_private_message
+    elif chat_id not in chats:
         chat = Chat(chat_id)
         message_text = game_start_message
         context.job_queue.run_once(finish_registration, 10, name=str(chat_id), data=chat_id)
@@ -194,10 +196,14 @@ async def mafiosi_callback(update, context):
     await query.answer()
 
     chat_id, _, chosen_player_id = parse_query(query.data)
-    chosen_player = find(chats[chat_id].players, chosen_player_id)
-    chosen_player.times_chosen += 1
+    if chosen_player_id != 0:
+        chosen_player = find(chats[chat_id].players, chosen_player_id)
+        chosen_player.times_chosen += 1
+        choice = chosen_player.name
+    else:
+        choice = 'Skip vote'
 
-    await query.edit_message_text(text=f'You selected: {chosen_player.name}')
+    await query.edit_message_text(text=f'You selected: {choice}')
 
     m = find(chats[chat_id].mafioso, query.from_user.id)
     m.voted = True
@@ -213,10 +219,14 @@ async def general_callback(update, context):
     await query.answer()
 
     chat_id, _, chosen_player_id = parse_query(query.data)
-    chosen_player = find(chats[chat_id].players, chosen_player_id)
-    chosen_player.times_chosen += 1
+    if chosen_player_id != 0:
+        chosen_player = find(chats[chat_id].players, chosen_player_id)
+        chosen_player.times_chosen += 1
+        choice = chosen_player.name
+    else:
+        choice = 'Skip vote'
 
-    await query.edit_message_text(text=f'You selected: {chosen_player.name}')
+    await query.edit_message_text(text=f'You selected: {choice}')
 
     p = find(chats[chat_id].players, query.from_user.id)
     p.voted = True

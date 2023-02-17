@@ -16,6 +16,7 @@ game_start_message = 'Starting new game\!\n'\
                      'In order to join please press /reg'\
 
 game_in_progress_message = 'Game is already in progress'
+game_private_message = "You can't play alone, can you?"
 
 # stopping the game
 game_idle_message = 'Game is not running, nothing to stop'
