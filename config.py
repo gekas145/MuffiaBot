@@ -18,7 +18,7 @@ game_start_message = 'Starting new game\!\n'\
 game_in_progress_message = 'Game is already in progress'
 
 # stopping the game
-game_running_message = 'Game is not running, nothing to stop'
+game_idle_message = 'Game is not running, nothing to stop'
 game_stopped_message = 'Stopped the game'
 not_enough_players_message = 'Not enough players, game will not start'
 
