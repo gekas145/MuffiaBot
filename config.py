@@ -1,5 +1,16 @@
 from utils import PlayerRole
 
+# players
+MAX_PLAYERS = 4
+MIN_PLAYERS = 4
+
+
+# delays(in seconds)
+registration_duration = 60
+voting_duration = 60
+conversation_duration = 5
+
+# bot messages
 greetings = {PlayerRole.MAFIOSO : 'Hi, you are mafioso',
              PlayerRole.INNOCENT: 'Hi, you are innocent'}
 

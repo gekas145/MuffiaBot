@@ -5,6 +5,8 @@ import random
 class GameStatus(Enum):
     REGISTRATION = 0
     RUNNING = 1
+    MAFIA_WON = 2
+    INNOCENTS_WON = 3
 
 
 class PlayerRole(str, Enum):
@@ -16,7 +18,6 @@ class Player:
     def __init__(self, id, name):
         self.id = id
         self.name = name
-        self.alive = True
         self.role = None
         self.voted = False
         self.vote_message_id = None
@@ -31,6 +32,9 @@ class Player:
             
         return False
     
+    def __hash__(self):
+        return self.id
+    
     def reset_vote_data(self):
         self.voted = False
         self.vote_message_id = None
@@ -40,36 +44,35 @@ class Chat:
     def __init__(self, id):
         self.id = id
         self.game_status = GameStatus.REGISTRATION
-        self.players = []
-        self.mafioso = []
+        self.players = {}
+        self.mafioso = {}
+        self.killed_players = []
         self.max_voters = 0
         self.voted = 0
         self.nights_passed = 0
     
     def assign_roles(self):
-        mafiosi_ind = random.randint(0, len(self.players) - 1)
+        ind = random.randint(0, len(self.players) - 1)
+        mafiosi_id = list(self.players.keys())[ind]
 
-        for i in range(len(self.players)):
-            if i == mafiosi_ind:
-                self.players[i].role = PlayerRole.MAFIOSO
-                self.mafioso.append(self.players[i])
+        for player in self.players.values():
+            if player.id == mafiosi_id:
+                player.role = PlayerRole.MAFIOSO
+                self.mafioso[player.id] = player
             else:
-                self.players[i].role = PlayerRole.INNOCENT
-    
-    def add_player(self, player):
-        self.players.append(player)
+                player.role = PlayerRole.INNOCENT
 
-    def __eq__(self, __o):
-        if isinstance(__o, int):
-            return __o == self.id
+    def __eq__(self, other):
+        if isinstance(other, int):
+            return other == self.id
 
-        if isinstance(__o, Chat):
-            return __o.id == self.id
+        if isinstance(other, Chat):
+            return other.id == self.id
             
         return False
     
     def build_mafiosi_keyboard(self):
-        victims = [p for p in self.players if p.id not in self.mafioso]
+        victims = [player for player in self.players.values() if player not in self.mafioso]
         keyboard = [[InlineKeyboardButton(vi.name, 
                      callback_data=str(self.id) + '_maf_' + str(vi.id))] for vi in victims]
         keyboard.append([InlineKeyboardButton('Skip vote', 
@@ -78,22 +81,33 @@ class Chat:
     
     def build_general_keyboard(self, id):
         keyboard = [[InlineKeyboardButton(p.name, 
-                     callback_data=str(self.id) + '_dayvote_' + str(p.id))] for p in self.players if p.id != id]
+                     callback_data=str(self.id) + '_dayvote_' + str(p.id))] for p in self.players.values() if p.id != id]
         keyboard.append([InlineKeyboardButton('Skip vote', 
                                                callback_data=str(self.id) + '_dayvote_' + '0')])
         return InlineKeyboardMarkup(keyboard)
     
-    def get_victim(self):
-        candidate = max(self.players, key=lambda p: p.times_chosen)
+    def get_victim(self, who_votes='maf'):
+        candidate = max(self.players.values(), key=lambda p: p.times_chosen)
         
-        count = 0
-        for p in self.players:
-            if candidate.times_chosen == p.times_chosen:
-                count += 1
-            if count > 1:
-                break
-        
-        if count > 1:
-            return None
-        return candidate
+        if who_votes == 'maf':
+            min_votes = len(self.mafioso)//2 + 1
+        else:
+            min_votes = len(self.players)//2
+
+        if candidate.times_chosen >= min_votes:
+            return candidate
+        return None
+    
+    def handle_victims(self, victims):
+        for victim in victims:
+            self.killed_players.append(self.players.pop(victim))
+            if victim in self.mafioso:
+                self.mafioso.pop(victim)
+    
+    def game_ended(self):
+        if len(self.mafioso) == 0:
+            return GameStatus.INNOCENTS_WON
+        if len(self.players) == 2:
+            return GameStatus.MAFIA_WON
+        return None
         

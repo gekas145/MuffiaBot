@@ -6,8 +6,6 @@ from utils import *
 
 
 TELEGRAM_API_KEY = os.getenv('TELEGRAM_API_KEY')
-MAX_PLAYERS = 2
-MIN_PLAYERS = 2
 chats = {}
 
 
@@ -27,7 +25,10 @@ async def start(update, context):
     elif chat_id not in chats:
         chat = Chat(chat_id)
         message_text = game_start_message
-        context.job_queue.run_once(finish_registration, 10, name=str(chat_id), data=chat_id)
+        context.job_queue.run_once(finish_registration, 
+                                   registration_duration, 
+                                   name=str(chat_id), 
+                                   data=chat_id)
         chats[chat_id] = chat
     else:
         message_text = game_in_progress_message
@@ -44,7 +45,7 @@ async def stop(update, context):
     if chat_id not in chats:
         message_text = game_idle_message
     else:
-        del chats[chat_id]
+        await handle_game_finish(chat_id, context)
         message_text = game_stopped_message
     
     await context.bot.send_message(chat_id=chat_id, text=message_text)
@@ -64,7 +65,7 @@ async def register(update, context):
             name = update.message.from_user.first_name 
             if update.message.from_user.last_name is not None:
                 name += ' ' + update.message.from_user.last_name 
-            chats[chat_id].players.append(Player(user_id, name))
+            chats[chat_id].players[user_id] = Player(user_id, name)
             message_text = successfull_register_message
 
     elif chat_id in chats:
@@ -98,7 +99,7 @@ async def finish_registration(context):
     await context.bot.send_message(chat_id=chat_id, text='The game begins!')
     await asyncio.sleep(5)
     chats[chat_id].assign_roles()
-    for p in chats[chat_id].players:
+    for p in chats[chat_id].players.values():
         await context.bot.send_message(chat_id=p.id, text=greetings[p.role])
 
     context.job_queue.run_once(night, 5, data=chat_id)
@@ -117,59 +118,70 @@ async def night(context):
 
     await change_players_permissions(chat_id, context)
 
-    chats[chat_id].max_voters = len(chats[chat_id].mafioso)
-    chats[chat_id].voted = 0
     chats[chat_id].nights_passed += 1
 
     if chats[chat_id].nights_passed > 1:
-        await handle_voters(chats[chat_id].players, context)
-        victim = chats[chat_id].get_victim()
+        await handle_voters(chats[chat_id].players.values(), context)
+        victim = chats[chat_id].get_victim(who_votes='dayvote')
 
         summary_message = 'Day vote has ended\n'
         if victim is not None:
             summary_message += f'{victim.name} was lynched, he was {victim.role}'
+            chats[chat_id].handle_victims([victim])
         else:
             summary_message += 'Nobody was lynched'
         
-        for p in chats[chat_id].players:
+        for p in chats[chat_id].players.values():
             p.times_chosen = 0
         
         await context.bot.send_message(chat_id=chat_id, text=summary_message)
         await asyncio.sleep(5)
+
+        game_ending = chats[chat_id].game_ended()
+        if game_ending is not None:
+            if game_ending == GameStatus.INNOCENTS_WON:
+                game_finished_message = 'Innocents have won!'
+            else:
+                game_finished_message = 'Mafia has won!'
+            await context.bot.send_message(chat_id, text=game_finished_message)
+            await handle_game_finish(chat_id, context)
+            return
     
     await context.bot.send_message(chat_id=chat_id, text=f'Night {chats[chat_id].nights_passed} begins')
     await asyncio.sleep(5)
 
+    chats[chat_id].max_voters = len(chats[chat_id].mafioso)
+    chats[chat_id].voted = 0
     reply_markup = chats[chat_id].build_mafiosi_keyboard()
-    for m in chats[chat_id].mafioso:
+    for m in chats[chat_id].mafioso.values():
         message = await context.bot.send_message(chat_id=m.id, text='Choose victim: ', 
                                                            reply_markup=reply_markup)
         m.vote_message_id = message.message_id
     
-    context.job_queue.run_once(day, 60, name=str(chat_id) + '_day', data=chat_id)
+    context.job_queue.run_once(day, voting_duration, name=str(chat_id) + '_day', data=chat_id)
 
 
 async def day(context):
     chat_id = context.job.data
 
-    chats[chat_id].max_voters = len(chats[chat_id].players)
-    chats[chat_id].voted = 0
-
-    await handle_voters(chats[chat_id].mafioso, context)
+    await handle_voters(chats[chat_id].mafioso.values(), context)
 
     day_message = f'Day {chats[chat_id].nights_passed} begins'
     victim = chats[chat_id].get_victim()
     if victim is not None:
         day_message += f'\n{victim.name} was killed during the night, he was {victim.role}'
+        chats[chat_id].handle_victims([victim])
     else:
         day_message += '\nNobody was killed during the night'
     await context.bot.send_message(chat_id=chat_id, text=day_message)
     
     await change_players_permissions(chat_id, context, mute=False)
 
-    await asyncio.sleep(5)
+    await asyncio.sleep(conversation_duration) # give the players time to chat
 
-    for p in chats[chat_id].players:
+    chats[chat_id].max_voters = len(chats[chat_id].players)
+    chats[chat_id].voted = 0
+    for p in chats[chat_id].players.values():
         p.times_chosen = 0
         reply_markup = chats[chat_id].build_general_keyboard(p.id)
         message = await context.bot.send_message(chat_id=p.id, 
@@ -177,7 +189,7 @@ async def day(context):
                                        reply_markup=reply_markup)
         p.vote_message_id = message.message_id
     
-    context.job_queue.run_once(night, 60, name=str(chat_id) + '_night', data=chat_id)
+    context.job_queue.run_once(night, voting_duration, name=str(chat_id) + '_night', data=chat_id)
 
 
 async def handle_unvoted(context, id, message_id):
@@ -199,7 +211,7 @@ async def voting_callback(update, context):
 
     chat_id, who, chosen_player_id = parse_query(query.data)
     if chosen_player_id != 0:
-        chosen_player = find(chats[chat_id].players, chosen_player_id)
+        chosen_player = chats[chat_id].players[chosen_player_id]
         chosen_player.times_chosen += 1
         choice = chosen_player.name
     else:
@@ -208,9 +220,9 @@ async def voting_callback(update, context):
     await query.edit_message_text(text=f'You selected: {choice}')
 
     if who == 'maf':
-        voter = find(chats[chat_id].mafioso, query.from_user.id)
+        voter = chats[chat_id].mafioso[query.from_user.id]
     else:
-        voter = find(chats[chat_id].players, query.from_user.id)
+        voter = chats[chat_id].players[query.from_user.id]
     voter.voted = True
 
     chats[chat_id].voted += 1
@@ -223,13 +235,24 @@ async def voting_callback(update, context):
             context.job_queue.run_once(night, 5, data=chat_id)
 
 
-async def change_players_permissions(chat_id, context, mute=True):
+async def change_players_permissions(chat_id, context, mute=True, all=False):
     permissions = ChatPermissions(can_send_messages=not mute)
-    for p in chats[chat_id].players:
+    for p in chats[chat_id].players.values():
         try:
             await context.bot.restrict_chat_member(chat_id, p.id, permissions)
         except Exception: # group owners will not be muted, cuz no idea how to
             pass
+    if all:
+        for p in chats[chat_id].killed_players:
+            try:
+                await context.bot.restrict_chat_member(chat_id, p.id, permissions)
+            except Exception:
+                pass
+
+
+async def handle_game_finish(chat_id, context):
+    await change_players_permissions(chat_id, context, mute=False, all=True)
+    del chats[chat_id]
 
 
 def parse_query(query):
@@ -237,14 +260,6 @@ def parse_query(query):
     res[0] = int(res[0])
     res[-1] = int(res[-1])
     return res
-
-
-def find(ls, val):
-    try:
-        return ls[ls.index(val)]
-    except ValueError:
-        return None
-
 
 
 
