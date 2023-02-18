@@ -161,6 +161,8 @@ async def day(context):
     victim = chats[chat_id].get_victim()
     if victim is not None:
         day_message += f'\n{victim.name} was killed during the night, he was {victim.role}'
+    else:
+        day_message += '\nNobody was killed during the night'
     await context.bot.send_message(chat_id=chat_id, text=day_message)
     
     await change_players_permissions(chat_id, context, mute=False)
@@ -191,11 +193,11 @@ async def handle_voters(voters, context):
         vo.reset_vote_data()
 
 
-async def mafiosi_callback(update, context):
+async def voting_callback(update, context):
     query = update.callback_query
     await query.answer()
 
-    chat_id, _, chosen_player_id = parse_query(query.data)
+    chat_id, who, chosen_player_id = parse_query(query.data)
     if chosen_player_id != 0:
         chosen_player = find(chats[chat_id].players, chosen_player_id)
         chosen_player.times_chosen += 1
@@ -205,36 +207,20 @@ async def mafiosi_callback(update, context):
 
     await query.edit_message_text(text=f'You selected: {choice}')
 
-    m = find(chats[chat_id].mafioso, query.from_user.id)
-    m.voted = True
-
-    chats[chat_id].voted += 1
-    if chats[chat_id].voted == chats[chat_id].max_voters:
-        remove_job_if_exists(str(chat_id) + '_day', context)
-        context.job_queue.run_once(day, 5, data=chat_id)
-
-
-async def general_callback(update, context):
-    query = update.callback_query
-    await query.answer()
-
-    chat_id, _, chosen_player_id = parse_query(query.data)
-    if chosen_player_id != 0:
-        chosen_player = find(chats[chat_id].players, chosen_player_id)
-        chosen_player.times_chosen += 1
-        choice = chosen_player.name
+    if who == 'maf':
+        voter = find(chats[chat_id].mafioso, query.from_user.id)
     else:
-        choice = 'Skip vote'
-
-    await query.edit_message_text(text=f'You selected: {choice}')
-
-    p = find(chats[chat_id].players, query.from_user.id)
-    p.voted = True
+        voter = find(chats[chat_id].players, query.from_user.id)
+    voter.voted = True
 
     chats[chat_id].voted += 1
     if chats[chat_id].voted == chats[chat_id].max_voters:
-        remove_job_if_exists(str(chat_id) + '_night', context)
-        context.job_queue.run_once(night, 5, data=chat_id)
+        if who == 'maf':
+            remove_job_if_exists(str(chat_id) + '_day', context)
+            context.job_queue.run_once(day, 5, data=chat_id)
+        else:
+            remove_job_if_exists(str(chat_id) + '_night', context)
+            context.job_queue.run_once(night, 5, data=chat_id)
 
 
 async def change_players_permissions(chat_id, context, mute=True):
@@ -270,7 +256,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('reg', register))
     application.add_handler(CommandHandler('stop', stop))
-    application.add_handler(CallbackQueryHandler(mafiosi_callback, pattern=r'^-\d+_maf_\d+$'))
-    application.add_handler(CallbackQueryHandler(general_callback, pattern=r'^-\d+_dayvote_\d+$'))
+    application.add_handler(CallbackQueryHandler(voting_callback, pattern=r'^-\d+_maf_\d+$'))
+    application.add_handler(CallbackQueryHandler(voting_callback, pattern=r'^-\d+_dayvote_\d+$'))
 
     application.run_polling()
