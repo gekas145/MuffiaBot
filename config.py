@@ -1,8 +1,8 @@
 from utils import PlayerRole
 
 # players
-MAX_PLAYERS = 4
-MIN_PLAYERS = 4
+MAX_PLAYERS = 2
+MIN_PLAYERS = 2
 
 
 # delays(in seconds)
@@ -11,13 +11,17 @@ voting_duration = 60
 conversation_duration = 5
 
 # bot messages
-greetings = {PlayerRole.MAFIOSO : 'Hi, you are mafioso',
-             PlayerRole.INNOCENT: 'Hi, you are innocent'}
+greetings = {PlayerRole.MAFIOSO : 'You are *Mafioso*\.\n'\
+                                  'Your main goal is to eliminate innocents\.\n'\
+                                  "Good luck and don't let other players guess who you really are\!",
+             PlayerRole.INNOCENT: 'You are *Innocent*\.\n'\
+                                  "There's not much you can to stop mafia\,\n"\
+                                  'but if you cooperate with other innocents your city might stand a chance\.'}
 
-help_message = 'Hi there, I am MuffiaBot\n'\
+help_message = 'Hi there, I am *MuffiaBot*\n'\
                 'I understand theese commands:\n'\
                 '• /help \- display this help message\n'\
-                '• /start \- start maffia game\n'\
+                '• /start \- start game\n'\
                 '• /reg \- register for game\n'\
                 '• /stop \- stop game'\
 

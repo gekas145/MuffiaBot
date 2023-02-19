@@ -100,7 +100,7 @@ async def finish_registration(context):
     await asyncio.sleep(5)
     chats[chat_id].assign_roles()
     for p in chats[chat_id].players.values():
-        await context.bot.send_message(chat_id=p.id, text=greetings[p.role])
+        await context.bot.send_message(chat_id=p.id, text=greetings[p.role], parse_mode='MarkdownV2')
 
     context.job_queue.run_once(night, 5, data=chat_id)
 

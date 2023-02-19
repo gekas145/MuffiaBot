@@ -107,7 +107,7 @@ class Chat:
     def game_ended(self):
         if len(self.mafioso) == 0:
             return GameStatus.INNOCENTS_WON
-        if len(self.players) == 2:
+        if len(self.players) <= 2:
             return GameStatus.MAFIA_WON
         return None
         
