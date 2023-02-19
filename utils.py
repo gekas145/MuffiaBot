@@ -11,18 +11,19 @@ class GameStatus(Enum):
 
 class PlayerRole(str, Enum):
     INNOCENT = 'innocent'
+    DETECTIVE = 'detective'
     MAFIOSO = 'mafioso'
 
 
 class Player:
     def __init__(self, id, name):
-        self.id = id
-        self.name = name
+        self.id = id # telegram user id
+        self.name = name # telegram nick
         self.role = None
-        self.voted = False
-        self.vote_message_id = None
-        self.times_chosen = 0
-    
+        self.voted = False # True if player voted in running vote, False otherwise
+        self.vote_message_id = None # id of last vote message
+        self.chosen_player_id = None # id of player chosen on voting
+
     def __eq__(self, __o):
         if isinstance(__o, int):
             return __o == self.id
@@ -46,6 +47,7 @@ class Chat:
         self.game_status = GameStatus.REGISTRATION
         self.players = {}
         self.mafioso = {}
+        self.detective = None
         self.killed_players = []
         self.max_voters = 0
         self.voted = 0
@@ -86,16 +88,28 @@ class Chat:
                                                callback_data=str(self.id) + '_dayvote_' + '0')])
         return InlineKeyboardMarkup(keyboard)
     
-    def get_victim(self, who_votes='maf'):
-        candidate = max(self.players.values(), key=lambda p: p.times_chosen)
-        
-        if who_votes == 'maf':
-            min_votes = len(self.mafioso)//2 + 1
-        else:
-            min_votes = len(self.players)//2
+    def get_mafia_victim(self):
+        votes = list(map(lambda m: m.chosen_player_id, self.mafioso.values()))
+        votes = get_occurences(votes)
+        if len(votes) == 0:
+            return None
 
-        if candidate.times_chosen >= min_votes:
-            return candidate
+        victim_id = max(votes, key=votes.get)
+
+        if votes[victim_id] >= len(self.mafioso)//2 + 1:
+            return self.players[victim_id]
+        return None
+    
+    def get_innocents_victim(self):
+        votes = list(map(lambda p: p.chosen_player_id, self.players.values()))
+        votes = get_occurences(votes)
+        if len(votes) == 0:
+            return None
+
+        victim_id = max(votes, key=votes.get)
+
+        if votes[victim_id] >= len(self.players)//2:
+            return self.players[victim_id]
         return None
     
     def handle_victims(self, victims):
@@ -110,4 +124,16 @@ class Chat:
         if len(self.players) <= 2:
             return GameStatus.MAFIA_WON
         return None
+
+
+def get_occurences(iterable):
+    occurences = {}
+    for item in iterable:
+        if item is None:
+            continue
+        if item in occurences:
+            occurences[item] += 1
+        else:
+            occurences[item] = 1
+    return occurences
         

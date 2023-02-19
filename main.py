@@ -122,7 +122,7 @@ async def night(context):
 
     if chats[chat_id].nights_passed > 1:
         await handle_voters(chats[chat_id].players.values(), context)
-        victim = chats[chat_id].get_victim(who_votes='dayvote')
+        victim = chats[chat_id].get_innocents_victim()
 
         summary_message = 'Day vote has ended\n'
         if victim is not None:
@@ -132,7 +132,7 @@ async def night(context):
             summary_message += 'Nobody was lynched'
         
         for p in chats[chat_id].players.values():
-            p.times_chosen = 0
+            p.chosen_player_id = None
         
         await context.bot.send_message(chat_id=chat_id, text=summary_message)
         await asyncio.sleep(5)
@@ -142,7 +142,9 @@ async def night(context):
             if game_ending == GameStatus.INNOCENTS_WON:
                 game_finished_message = 'Innocents have won!'
             else:
-                game_finished_message = 'Mafia has won!'
+                game_finished_message = 'Mafia has won!\nLeft mafioso:'
+                for m in chats[chat_id].mafioso.values():
+                    game_finished_message += '\n' + m.name
             await context.bot.send_message(chat_id, text=game_finished_message)
             await handle_game_finish(chat_id, context)
             return
@@ -167,7 +169,7 @@ async def day(context):
     await handle_voters(chats[chat_id].mafioso.values(), context)
 
     day_message = f'Day {chats[chat_id].nights_passed} begins'
-    victim = chats[chat_id].get_victim()
+    victim = chats[chat_id].get_mafia_victim()
     if victim is not None:
         day_message += f'\n{victim.name} was killed during the night, he was {victim.role}'
         chats[chat_id].handle_victims([victim])
@@ -182,7 +184,7 @@ async def day(context):
     chats[chat_id].max_voters = len(chats[chat_id].players)
     chats[chat_id].voted = 0
     for p in chats[chat_id].players.values():
-        p.times_chosen = 0
+        p.chosen_player_id = None
         reply_markup = chats[chat_id].build_general_keyboard(p.id)
         message = await context.bot.send_message(chat_id=p.id, 
                                        text='Whom do you suspect: ',
@@ -210,20 +212,16 @@ async def voting_callback(update, context):
     await query.answer()
 
     chat_id, who, chosen_player_id = parse_query(query.data)
+    from_user_id = query.from_user.id
     if chosen_player_id != 0:
-        chosen_player = chats[chat_id].players[chosen_player_id]
-        chosen_player.times_chosen += 1
-        choice = chosen_player.name
+        chats[chat_id].players[from_user_id].chosen_player_id = chosen_player_id
+        choice_text = chats[chat_id].players[chosen_player_id].name
     else:
-        choice = 'Skip vote'
+        choice_text = 'Skip vote'
 
-    await query.edit_message_text(text=f'You selected: {choice}')
+    await query.edit_message_text(text=f'You selected: {choice_text}')
 
-    if who == 'maf':
-        voter = chats[chat_id].mafioso[query.from_user.id]
-    else:
-        voter = chats[chat_id].players[query.from_user.id]
-    voter.voted = True
+    chats[chat_id].players[from_user_id].voted = True
 
     chats[chat_id].voted += 1
     if chats[chat_id].voted == chats[chat_id].max_voters:
