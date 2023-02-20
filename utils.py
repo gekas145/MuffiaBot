@@ -43,7 +43,7 @@ class Player:
 
 class Chat:
     def __init__(self, id):
-        self.id = id
+        self.id = id # telegram chat id
         self.game_status = GameStatus.REGISTRATION
         self.players = {}
         self.mafioso = {}
@@ -88,6 +88,9 @@ class Chat:
                                                callback_data=str(self.id) + '_dayvote_' + '0')])
         return InlineKeyboardMarkup(keyboard)
     
+    # called after night mafia vote
+    # returns reference to player with more than 50% votes
+    # None if there is no such player
     def get_mafia_victim(self):
         votes = list(map(lambda m: m.chosen_player_id, self.mafioso.values()))
         votes = get_occurences(votes)
@@ -100,6 +103,8 @@ class Chat:
             return self.players[victim_id]
         return None
     
+    # called after daily vote
+    # same rules as with mafia voting
     def get_innocents_victim(self):
         votes = list(map(lambda p: p.chosen_player_id, self.players.values()))
         votes = get_occurences(votes)
@@ -121,7 +126,7 @@ class Chat:
     def game_ended(self):
         if len(self.mafioso) == 0:
             return GameStatus.INNOCENTS_WON
-        if len(self.players) <= 2:
+        if len(self.mafioso) >= round(len(self.players)/2 + 0.01):
             return GameStatus.MAFIA_WON
         return None
 

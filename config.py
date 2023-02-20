@@ -16,7 +16,10 @@ greetings = {PlayerRole.MAFIOSO : 'You are *Mafioso*\.\n'\
                                   "Good luck and don't let other players guess who you really are\!",
              PlayerRole.INNOCENT: 'You are *Innocent*\.\n'\
                                   "There's not much you can to stop mafia\,\n"\
-                                  'but if you cooperate with other innocents your city might stand a chance\.'}
+                                  'but if you cooperate with other innocents your city might stand a chance\.',
+             PlayerRole.DETECTIVE: 'You are *Detective*\,\n'\
+                                   "the only hope of this city in fight against mafia\.\n"\
+                                   'Good luck!\.'}
 
 help_message = 'Hi there, I am *MuffiaBot*\n'\
                 'I understand theese commands:\n'\
