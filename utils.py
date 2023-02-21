@@ -19,7 +19,7 @@ class Player:
     def __init__(self, id, name):
         self.id = id # telegram user id
         self.name = name # telegram nick
-        self.role = None
+        self.role = PlayerRole.INNOCENT # players with special roles will get this field updated at roles assigning
         self.voted = False # True if player voted in running vote, False otherwise
         self.vote_message_id = None # id of last vote message
         self.chosen_player_id = None # id of player chosen on voting
@@ -54,15 +54,11 @@ class Chat:
         self.nights_passed = 0
     
     def assign_roles(self):
-        ind = random.randint(0, len(self.players) - 1)
-        mafiosi_id = list(self.players.keys())[ind]
+        mafiosi_id = roles_indices(self.players.keys(), 1)
 
-        for player in self.players.values():
-            if player.id == mafiosi_id:
-                player.role = PlayerRole.MAFIOSO
-                self.mafioso[player.id] = player
-            else:
-                player.role = PlayerRole.INNOCENT
+        for id in mafiosi_id:
+            self.players[id].role = PlayerRole.MAFIOSO
+            self.mafioso[id] = self.players[id]
 
     def __eq__(self, other):
         if isinstance(other, int):
@@ -113,7 +109,7 @@ class Chat:
 
         victim_id = max(votes, key=votes.get)
 
-        if votes[victim_id] >= len(self.players)//2:
+        if votes[victim_id] >= len(self.players)//2 + 1:
             return self.players[victim_id]
         return None
     
@@ -130,7 +126,8 @@ class Chat:
             return GameStatus.MAFIA_WON
         return None
 
-
+# returns dict which stores unique items from iterable as keys
+# and number of occurence of those items in iterable as values 
 def get_occurences(iterable):
     occurences = {}
     for item in iterable:
@@ -141,4 +138,15 @@ def get_occurences(iterable):
         else:
             occurences[item] = 1
     return occurences
-        
+
+# samples players indices for roles assigning
+def roles_indices(arr, *args):
+    indices = random.sample(arr, k=sum(args))
+    if len(args) == 1:
+        return indices
+    res = []
+    start = 0
+    for i in args:
+        res.append(indices[start:start + i])
+        start += i
+    return res

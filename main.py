@@ -223,6 +223,12 @@ async def voting_callback(update, context):
 
     chats[chat_id].players[from_user_id].voted = True
 
+    if who == 'dayvote':
+        voted_message = f'{chats[chat_id].players[from_user_id].name}'
+        who_chosen = chats[chat_id].players[chosen_player_id].name if chosen_player_id != 0 else ''
+        voted_message += f' voted for {who_chosen}' if chosen_player_id != 0 else ' skipped'
+        await context.bot.send_message(chat_id, text=voted_message)
+
     chats[chat_id].voted += 1
     if chats[chat_id].voted == chats[chat_id].max_voters:
         if who == 'maf':
