@@ -152,6 +152,8 @@ class Chat:
             self.killed_players.append(self.players.pop(victim))
             if victim in self.mafioso:
                 self.mafioso.pop(victim)
+            elif victim == self.detective:
+                self.detective = None
     
     def game_ended(self):
         if len(self.mafioso) == 0:
