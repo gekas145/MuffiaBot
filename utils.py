@@ -54,8 +54,13 @@ class Chat:
         self.nights_passed = 0
     
     def assign_roles(self):
-        mafiosi_id = roles_indices(self.players.keys(), 1)
+        mafiosi_id, detective_id = roles_indices(self.players.keys(), 1, 1)
 
+        self.players[detective_id].role = PlayerRole.DETECTIVE
+        self.detective = self.players[detective_id]
+
+        if isinstance(mafiosi_id, int):
+            mafiosi_id = [mafiosi_id]
         for id in mafiosi_id:
             self.players[id].role = PlayerRole.MAFIOSO
             self.mafioso[id] = self.players[id]
@@ -73,8 +78,19 @@ class Chat:
         victims = [player for player in self.players.values() if player not in self.mafioso]
         keyboard = [[InlineKeyboardButton(vi.name, 
                      callback_data=str(self.id) + '_maf_' + str(vi.id))] for vi in victims]
-        keyboard.append([InlineKeyboardButton('Skip vote', 
-                                               callback_data=str(self.id) + '_maf_' + '0')])
+        # keyboard.append([InlineKeyboardButton('Skip vote', 
+        #                                        callback_data=str(self.id) + '_maf_' + '0')])
+        return InlineKeyboardMarkup(keyboard)
+    
+    def build_detective_action_keyboard(self):
+        keyboard = [[InlineKeyboardButton('Kill', callback_data=str(self.id) + '_detkill_'),
+                     InlineKeyboardButton('Check', callback_data=str(self.id) + '_detcheck_')]]
+        return InlineKeyboardMarkup(keyboard)
+
+    def build_detective_player_keyboard(self, action):
+        keyboard = [[InlineKeyboardButton(p.name, 
+                     callback_data=str(self.id) + '_' + action + '_' + str(p.id))]\
+                     for p in self.players.values() if p.id != self.detective]
         return InlineKeyboardMarkup(keyboard)
     
     def build_general_keyboard(self, id):
@@ -98,6 +114,24 @@ class Chat:
         if votes[victim_id] >= len(self.mafioso)//2 + 1:
             return self.players[victim_id]
         return None
+    
+    def get_detective_victim(self):
+        if self.detective is not None and self.detective.chosen_player_id is not None:
+            return self.players[self.detective.chosen_player_id]
+        return None
+    
+    def get_night_victims(self):
+        mafia_victim = self.get_mafia_victim()
+        detective_victim = self.get_detective_victim()
+
+        victims = []
+        if mafia_victim:
+            victims.append(mafia_victim)
+        if detective_victim and detective_victim != mafia_victim:
+            victims.append(detective_victim)
+        
+        return victims
+        
     
     # called after daily vote
     # same rules as with mafia voting
@@ -147,6 +181,9 @@ def roles_indices(arr, *args):
     res = []
     start = 0
     for i in args:
-        res.append(indices[start:start + i])
+        if i == 1:
+            res.append(indices[start])
+        else:
+            res.append(indices[start:start + i])
         start += i
     return res

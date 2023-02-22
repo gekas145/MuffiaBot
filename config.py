@@ -1,7 +1,7 @@
 from utils import PlayerRole
 
 # players
-MAX_PLAYERS = 2
+MAX_PLAYERS = 3
 MIN_PLAYERS = 2
 
 
@@ -19,7 +19,7 @@ greetings = {PlayerRole.MAFIOSO : 'You are *Mafioso*\.\n'\
                                   'but if you cooperate with other innocents your city might stand a chance\.',
              PlayerRole.DETECTIVE: 'You are *Detective*\,\n'\
                                    "the only hope of this city in fight against mafia\.\n"\
-                                   'Good luck!\.'}
+                                   'Good luck\!'}
 
 help_message = 'Hi there, I am *MuffiaBot*\n'\
                 'I understand theese commands:\n'\
