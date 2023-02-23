@@ -7,6 +7,7 @@ class GameStatus(Enum):
     RUNNING = 1
     MAFIA_WON = 2
     INNOCENTS_WON = 3
+    DRAW = 4
 
 
 class PlayerRole(str, Enum):
@@ -155,11 +156,28 @@ class Chat:
             elif victim == self.detective:
                 self.detective = None
     
-    def game_ended(self):
+    def check_game_ended(self, when):
         if len(self.mafioso) == 0:
             return GameStatus.INNOCENTS_WON
-        if len(self.mafioso) >= round(len(self.players)/2 + 0.01):
+        
+        if len(self.players) == 2 and len(self.mafioso) == 1 and self.detective:
+            return GameStatus.DRAW
+
+        if 2*len(self.mafioso) >= len(self.players) + 1:
             return GameStatus.MAFIA_WON
+
+        if when == 'after_day' and self.detective is None:
+            if 2*len(self.mafioso) >= len(self.players) - 1:
+                return GameStatus.MAFIA_WON
+            else:
+                return None
+
+        if when == 'after_night' and self.detective is None:
+            if 2*len(self.mafioso) >= len(self.players):
+                return GameStatus.MAFIA_WON
+            else:
+                return None
+
         return None
 
 # returns dict which stores unique items from iterable as keys

@@ -139,16 +139,8 @@ async def night(context):
         await context.bot.send_message(chat_id=chat_id, text=summary_message)
         await asyncio.sleep(5)
 
-        game_ending = chats[chat_id].game_ended()
-        if game_ending is not None:
-            if game_ending == GameStatus.INNOCENTS_WON:
-                game_finished_message = 'Innocents have won!'
-            else:
-                game_finished_message = 'Mafia has won!\nLeft mafioso:'
-                for m in chats[chat_id].mafioso.values():
-                    game_finished_message += '\n' + m.name
-            await context.bot.send_message(chat_id, text=game_finished_message)
-            await handle_game_finish(chat_id, context)
+        game_ended = await check_game_ended(chat_id, context, 'after_day')
+        if game_ended:
             return
     
     await context.bot.send_message(chat_id=chat_id, text=f'Night {chats[chat_id].nights_passed} begins')
@@ -180,6 +172,10 @@ async def day(context):
         day_message += '\nNobody was killed during the night'
     
     await context.bot.send_message(chat_id=chat_id, text=day_message)
+
+    game_ended = await check_game_ended(chat_id, context, 'after_night')
+    if game_ended:
+        return
     
     await change_players_permissions(chat_id, context, mute=False)
 
@@ -327,6 +323,31 @@ async def change_players_permissions(chat_id, context, mute=True, all=False):
 async def handle_game_finish(chat_id, context):
     await change_players_permissions(chat_id, context, mute=False, all=True)
     del chats[chat_id]
+
+
+async def check_game_ended(chat_id, context, when):
+    game_ending = chats[chat_id].check_game_ended(when)
+
+    if game_ending is None:
+        return False
+
+    if game_ending == GameStatus.INNOCENTS_WON:
+        game_finished_message = 'Innocents have won!'
+        if chats[chat_id].detective is not None:
+            game_finished_message += f'\nDetective: {chats[chat_id].detective.name}'
+    elif game_ending == GameStatus.MAFIA_WON:
+        game_finished_message = 'Mafia has won!\nLeft mafioso:'
+        for m in chats[chat_id].mafioso.values():
+            game_finished_message += '\n' + m.name
+    else:
+        game_finished_message = "It's a draw.\n"
+        game_finished_message += f'Detective: {chats[chat_id].detective.name}\n'
+        game_finished_message += f'Mafioso: {list(chats[chat_id].mafioso.values())[0].name}'
+
+    await context.bot.send_message(chat_id, text=game_finished_message)
+    await handle_game_finish(chat_id, context)
+
+    return True
 
 
 def parse_query(query):
