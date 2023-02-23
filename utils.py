@@ -46,6 +46,7 @@ class Chat:
     def __init__(self, id):
         self.id = id # telegram chat id
         self.game_status = GameStatus.REGISTRATION
+        self.registration_message_id = None
         self.players = {}
         self.mafioso = {}
         self.detective = None

@@ -1,8 +1,8 @@
 from utils import PlayerRole
 
 # players
-MAX_PLAYERS = 3
-MIN_PLAYERS = 2
+MAX_PLAYERS = 4
+MIN_PLAYERS = 4
 
 
 # delays(in seconds)
@@ -25,13 +25,11 @@ help_message = 'Hi there, I am *MuffiaBot*\n'\
                 'I understand theese commands:\n'\
                 '• /help \- display this help message\n'\
                 '• /start \- start game\n'\
-                '• /reg \- register for game\n'\
                 '• /stop \- stop game'\
 
 
 # starting the game
-game_start_message = 'Starting new game\!\n'\
-                     'In order to join please press /reg'\
+game_start_message = 'Starting new game\!'
 
 game_in_progress_message = 'Game is already in progress'
 game_private_message = "You can't play alone, can you?"

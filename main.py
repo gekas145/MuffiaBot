@@ -1,6 +1,6 @@
 import os, asyncio
-from telegram import ChatPermissions
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler
+from telegram import ChatPermissions, helpers
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, filters
 from config import *
 from utils import *
 
@@ -21,21 +21,28 @@ async def start(update, context):
     chat_id = update.effective_chat.id
 
     if chat_id > 0:
-        message_text = game_private_message
+        await context.bot.send_message(chat_id=chat_id, 
+                                       text=game_private_message, 
+                                       parse_mode='MarkdownV2')
     elif chat_id not in chats:
         chat = Chat(chat_id)
-        message_text = game_start_message
         context.job_queue.run_once(finish_registration, 
                                    registration_duration, 
                                    name=str(chat_id), 
                                    data=chat_id)
         chats[chat_id] = chat
+
+        url = helpers.create_deep_linked_url(context.bot.username, str(chat_id))
+        keyboard = InlineKeyboardMarkup.from_button(InlineKeyboardButton(text='Register', url=url))
+        message = await context.bot.send_message(chat_id=chat_id, 
+                                                 text=game_start_message,
+                                                 reply_markup=keyboard, 
+                                                 parse_mode='MarkdownV2')
+        chats[chat_id].registration_message_id = message.message_id
     else:
-        message_text = game_in_progress_message
-    
-    await context.bot.send_message(chat_id=chat_id, 
-                                   text=message_text, 
-                                   parse_mode='MarkdownV2')
+        await context.bot.send_message(chat_id=chat_id, 
+                                       text=game_in_progress_message, 
+                                       parse_mode='MarkdownV2')
 
 
 async def stop(update, context):
@@ -54,7 +61,7 @@ async def stop(update, context):
 async def register(update, context):
 
     user_id = update.message.from_user.id
-    chat_id = update.effective_chat.id
+    chat_id = int(context.args[0])
     success = True
 
     if chat_id in chats and chats[chat_id].game_status == GameStatus.REGISTRATION:
@@ -82,13 +89,18 @@ async def register(update, context):
         return
 
     if len(chats[chat_id].players) == MAX_PLAYERS:
+        await handle_registration_message(chat_id, context)
+
         chats[chat_id].game_status = GameStatus.RUNNING
+
         remove_job_if_exists(str(chat_id), context)
         context.job_queue.run_once(finish_registration, 0, data=chat_id)
 
 
 async def finish_registration(context):
     chat_id = context.job.data
+
+    await handle_registration_message(chat_id, context)
 
     if len(chats[chat_id].players) < MIN_PLAYERS:
         await context.bot.send_message(chat_id=chat_id, text=not_enough_players_message)
@@ -197,8 +209,9 @@ async def day(context):
 async def send_mafia_vote(chat_id, context):
     reply_markup = chats[chat_id].build_mafiosi_keyboard()
     for m in chats[chat_id].mafioso.values():
-        message = await context.bot.send_message(chat_id=m.id, text='Choose victim: ', 
-                                                           reply_markup=reply_markup)
+        message = await context.bot.send_message(chat_id=m.id, 
+                                                 text='Choose victim: ', 
+                                                 reply_markup=reply_markup)
         m.vote_message_id = message.message_id
 
 
@@ -321,8 +334,17 @@ async def change_players_permissions(chat_id, context, mute=True, all=False):
 
 
 async def handle_game_finish(chat_id, context):
+    await handle_registration_message(chat_id, context)
     await change_players_permissions(chat_id, context, mute=False, all=True)
     del chats[chat_id]
+
+
+async def handle_registration_message(chat_id, context):
+    if chats[chat_id].registration_message_id:
+        await context.bot.edit_message_reply_markup(chat_id=chat_id,
+                                                    message_id=chats[chat_id].registration_message_id, 
+                                                    reply_markup=None)
+        chats[chat_id].registration_message_id = None
 
 
 async def check_game_ended(chat_id, context, when):
@@ -363,12 +385,12 @@ if __name__ == '__main__':
     application = ApplicationBuilder().token(TELEGRAM_API_KEY).build()
 
     application.add_handler(CommandHandler('help', help))
+    application.add_handler(CommandHandler('start', register, filters.Regex('-\d+')))
     application.add_handler(CommandHandler('start', start))
-    application.add_handler(CommandHandler('reg', register))
     application.add_handler(CommandHandler('stop', stop))
-    application.add_handler(CallbackQueryHandler(voting_callback, pattern=r'^-\d+_maf_\d+$'))
-    application.add_handler(CallbackQueryHandler(voting_callback, pattern=r'^-\d+_dayvote_\d+$'))
-    application.add_handler(CallbackQueryHandler(detective_action_callback, pattern=r'^-\d+_det(?:kill|check)_$'))
-    application.add_handler(CallbackQueryHandler(detective_player_callback, pattern=r'^-\d+_det(?:kill|check)_\d+$'))
+    application.add_handler(CallbackQueryHandler(voting_callback, pattern='^-\d+_maf_\d+$'))
+    application.add_handler(CallbackQueryHandler(voting_callback, pattern='^-\d+_dayvote_\d+$'))
+    application.add_handler(CallbackQueryHandler(detective_action_callback, pattern='^-\d+_det(?:kill|check)_$'))
+    application.add_handler(CallbackQueryHandler(detective_player_callback, pattern='^-\d+_det(?:kill|check)_\d+$'))
 
     application.run_polling()
