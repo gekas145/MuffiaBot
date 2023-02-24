@@ -15,7 +15,6 @@ async def help(update, context):
                                    parse_mode='MarkdownV2')
 
 
-
 async def start(update, context):
     global chats
     chat_id = update.effective_chat.id
@@ -25,18 +24,15 @@ async def start(update, context):
                                        text=game_private_message, 
                                        parse_mode='MarkdownV2')
     elif chat_id not in chats:
-        chat = Chat(chat_id)
+        chats[chat_id] = Chat(chat_id, context.bot.username)
         context.job_queue.run_once(finish_registration, 
                                    registration_duration, 
                                    name=str(chat_id), 
                                    data=chat_id)
-        chats[chat_id] = chat
 
-        url = helpers.create_deep_linked_url(context.bot.username, str(chat_id))
-        keyboard = InlineKeyboardMarkup.from_button(InlineKeyboardButton(text='Register', url=url))
         message = await context.bot.send_message(chat_id=chat_id, 
                                                  text=game_start_message,
-                                                 reply_markup=keyboard, 
+                                                 reply_markup=chats[chat_id].registration_keyboard, 
                                                  parse_mode='MarkdownV2')
         chats[chat_id].registration_message_id = message.message_id
     else:
@@ -87,6 +83,8 @@ async def register(update, context):
     
     if not success:
         return
+    
+    await update_registration_message(chat_id, context)
 
     if len(chats[chat_id].players) == MAX_PLAYERS:
         await handle_registration_message(chat_id, context)
@@ -140,15 +138,17 @@ async def night(context):
 
         summary_message = 'Day vote has ended\n'
         if victim is not None:
-            summary_message += f'{victim.name} was lynched, he was {victim.role}'
+            summary_message += f'{victim.name} was lynched, he was {victim.role}\n'
             chats[chat_id].handle_victims([victim])
         else:
-            summary_message += 'Nobody was lynched'
+            summary_message += 'Nobody was lynched\n'
         
         for p in chats[chat_id].players.values():
             p.chosen_player_id = None
         
-        await context.bot.send_message(chat_id=chat_id, text=summary_message)
+        summary_message += 'Remaining players:\n' + chats[chat_id].get_alive_players_description()
+        
+        await context.bot.send_message(chat_id=chat_id, text=summary_message, parse_mode='MarkdownV2')
         await asyncio.sleep(5)
 
         game_ended = await check_game_ended(chat_id, context, 'after_day')
@@ -345,6 +345,14 @@ async def handle_registration_message(chat_id, context):
                                                     message_id=chats[chat_id].registration_message_id, 
                                                     reply_markup=None)
         chats[chat_id].registration_message_id = None
+
+async def update_registration_message(chat_id, context):
+    text = game_start_message + '\nRegistered players:\n' + chats[chat_id].get_alive_players_description()
+    await context.bot.edit_message_text(chat_id=chat_id,
+                                        message_id=chats[chat_id].registration_message_id,
+                                        text=text,
+                                        reply_markup=chats[chat_id].registration_keyboard, 
+                                        parse_mode='MarkdownV2')
 
 
 async def check_game_ended(chat_id, context, when):

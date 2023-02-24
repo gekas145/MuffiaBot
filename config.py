@@ -1,8 +1,8 @@
 from utils import PlayerRole
 
 # players
-MAX_PLAYERS = 4
-MIN_PLAYERS = 4
+MAX_PLAYERS = 3
+MIN_PLAYERS = 3
 
 
 # delays(in seconds)

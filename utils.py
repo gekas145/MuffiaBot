@@ -1,5 +1,5 @@
 from enum import Enum
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, helpers
 import random
 
 class GameStatus(Enum):
@@ -20,6 +20,7 @@ class Player:
     def __init__(self, id, name):
         self.id = id # telegram user id
         self.name = name # telegram nick
+        self.markdown_link = helpers.mention_markdown(self.id, self.name, version=2) # telegram markdown link to user
         self.role = PlayerRole.INNOCENT # players with special roles will get this field updated at roles assigning
         self.voted = False # True if player voted in running vote, False otherwise
         self.vote_message_id = None # id of last vote message
@@ -43,7 +44,7 @@ class Player:
 
 
 class Chat:
-    def __init__(self, id):
+    def __init__(self, id, bot_username):
         self.id = id # telegram chat id
         self.game_status = GameStatus.REGISTRATION
         self.registration_message_id = None
@@ -54,6 +55,9 @@ class Chat:
         self.max_voters = 0
         self.voted = 0
         self.nights_passed = 0
+        url = helpers.create_deep_linked_url(bot_username, str(self.id))
+        self.registration_keyboard = InlineKeyboardMarkup.from_button(InlineKeyboardButton(text='Register', 
+                                                                                           url=url))
     
     def assign_roles(self):
         mafiosi_id, detective_id = roles_indices(self.players.keys(), 1, 1)
@@ -63,6 +67,7 @@ class Chat:
 
         if isinstance(mafiosi_id, int):
             mafiosi_id = [mafiosi_id]
+
         for id in mafiosi_id:
             self.players[id].role = PlayerRole.MAFIOSO
             self.mafioso[id] = self.players[id]
@@ -76,6 +81,13 @@ class Chat:
             
         return False
     
+    def get_alive_players_description(self):
+        description = ''
+        for i, player in enumerate(self.players.values()):
+            description += f'{i+1}\. {player.markdown_link}\n'
+
+        return description
+
     def build_mafiosi_keyboard(self):
         victims = [player for player in self.players.values() if player not in self.mafioso]
         keyboard = [[InlineKeyboardButton(vi.name, 
