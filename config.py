@@ -1,7 +1,7 @@
 from utils import PlayerRole
 
 # players
-MAX_PLAYERS = 3
+MAX_PLAYERS = 4
 MIN_PLAYERS = 3
 MIN_PLAYERS_FOR_2_MAFIOSO = 10
 MIN_PLAYERS_FOR_3_MAFIOSO = 15
@@ -9,8 +9,9 @@ MIN_PLAYERS_FOR_3_MAFIOSO = 15
 
 # delays(in seconds)
 registration_duration = 60
-voting_duration = 60
-conversation_duration = 5
+night_voting_duration = 60
+conversation_duration = 60
+day_voting_duration = 20
 
 # bot messages
 greetings = {PlayerRole.MAFIOSO : 'You are *Mafioso*\.\n'\
@@ -48,5 +49,5 @@ double_register_message = 'You are already registered'
 
 # during the game
 conversation_message = f'You now have *{conversation_duration} seconds* to discuss the situation'
-day_vote_message = f"It's time to lynch mafia, you've got *{voting_duration} seconds* to make your choice"
+day_vote_message = f"It's time to lynch mafia, you've got *{day_voting_duration} seconds* to make your choice"
 

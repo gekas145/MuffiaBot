@@ -163,7 +163,7 @@ async def night(context):
     await send_mafia_vote(chat_id, context)
     await send_detective_action_vote(chat_id, context)
     
-    context.job_queue.run_once(day, voting_duration, name=str(chat_id) + '_day', data=chat_id)
+    context.job_queue.run_once(day, night_voting_duration, name=str(chat_id) + '_day', data=chat_id)
 
 
 async def day(context):
@@ -206,7 +206,7 @@ async def day(context):
                                        reply_markup=reply_markup)
         p.vote_message_id = message.message_id
     
-    context.job_queue.run_once(night, voting_duration, name=str(chat_id) + '_night', data=chat_id)
+    context.job_queue.run_once(night, day_voting_duration, name=str(chat_id) + '_night', data=chat_id)
 
 
 async def send_mafia_vote(chat_id, context):
