@@ -191,7 +191,10 @@ async def day(context):
     
     await change_players_permissions(chat_id, context, mute=False)
 
+    await context.bot.send_message(chat_id=chat_id, text=conversation_message, parse_mode='MarkdownV2')
     await asyncio.sleep(conversation_duration) # give the players time to chat
+
+    await context.bot.send_message(chat_id=chat_id, text=day_vote_message, parse_mode='MarkdownV2')
 
     chats[chat_id].max_voters = len(chats[chat_id].players)
     chats[chat_id].voted = 0
@@ -227,12 +230,12 @@ async def send_detective_action_vote(chat_id, context):
 
 
 async def inform_mafia_team(chat_id, context):
-    message_text = 'Other mafia members: '
     for id in chats[chat_id].mafioso:
-        other_mafia_members = list(filter(lambda m: m != id, chats[chat_id].mafioso.values()))
-        other_mafia_names = map(lambda m: m.name, other_mafia_members)
+        message_text = 'Other mafia members: '
+        other_mafia_members = filter(lambda m: m != id, chats[chat_id].mafioso.values())
+        other_mafia_names = map(lambda m: m.markdown_link, other_mafia_members)
         message_text += ', '.join(other_mafia_names)
-        await context.bot.send_message(chat_id=id, text=message_text)
+        await context.bot.send_message(chat_id=id, text=message_text, parse_mode='MarkdownV2')
 
 
 async def handle_unvoted(context, id, message_id):
@@ -243,9 +246,9 @@ async def handle_unvoted(context, id, message_id):
 
 async def handle_voters(voters, context):
     for vo in voters:
-        if not vo.voted:
+        if vo.vote_message_id is not None:
             await handle_unvoted(context, vo.id, vo.vote_message_id)
-        vo.reset_vote_data()
+            vo.vote_message_id = None
 
 
 async def voting_callback(update, context):
@@ -262,7 +265,7 @@ async def voting_callback(update, context):
 
     await query.edit_message_text(text=f'You selected: {choice_text}')
 
-    chats[chat_id].players[from_user_id].voted = True
+    chats[chat_id].players[from_user_id].vote_message_id = None
 
     voted_message = f'{chats[chat_id].players[from_user_id].name}'
     who_chosen = chats[chat_id].players[chosen_player_id].name if chosen_player_id != 0 else ''
@@ -303,7 +306,7 @@ async def detective_player_callback(update, context):
 
     chat_id, action, chosen_player_id = parse_query(query.data)
 
-    chats[chat_id].detective.voted = True
+    chats[chat_id].detective.vote_message_id = None
 
     p = chats[chat_id].players[chosen_player_id]
     if action == 'detcheck':

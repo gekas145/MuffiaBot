@@ -3,6 +3,8 @@ from utils import PlayerRole
 # players
 MAX_PLAYERS = 3
 MIN_PLAYERS = 3
+MIN_PLAYERS_FOR_2_MAFIOSO = 10
+MIN_PLAYERS_FOR_3_MAFIOSO = 15
 
 
 # delays(in seconds)
@@ -30,18 +32,21 @@ help_message = 'Hi there, I am *MuffiaBot*\n'\
 
 # starting the game
 game_start_message = 'Starting new game\!'
-
 game_in_progress_message = 'Game is already in progress'
 game_private_message = "You can't play alone, can you?"
 
 # stopping the game
 game_idle_message = 'Game is not running, nothing to stop'
 game_stopped_message = 'Stopped the game'
-not_enough_players_message = 'Not enough players, game will not start'
+not_enough_players_message = 'Not enough players, game will not begin'
 
 # registration
 successfull_register_message = 'You have successfully registered!'
 early_register_message = 'Unable to register, start game first'
 late_register_message = 'Too late, wait for current game to stop'
 double_register_message = 'You are already registered'
+
+# during the game
+conversation_message = f'You now have *{conversation_duration} seconds* to discuss the situation'
+day_vote_message = f"It's time to lynch mafia, you've got *{voting_duration} seconds* to make your choice"
 

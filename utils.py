@@ -1,5 +1,6 @@
 from enum import Enum
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, helpers
+import config
 import random
 
 class GameStatus(Enum):
@@ -22,7 +23,6 @@ class Player:
         self.name = name # telegram nick
         self.markdown_link = helpers.mention_markdown(self.id, self.name, version=2) # telegram markdown link to user
         self.role = PlayerRole.INNOCENT # players with special roles will get this field updated at roles assigning
-        self.voted = False # True if player voted in running vote, False otherwise
         self.vote_message_id = None # id of last vote message
         self.chosen_player_id = None # id of player chosen on voting
 
@@ -37,10 +37,6 @@ class Player:
     
     def __hash__(self):
         return self.id
-    
-    def reset_vote_data(self):
-        self.voted = False
-        self.vote_message_id = None
 
 
 class Chat:
@@ -60,7 +56,13 @@ class Chat:
                                                                                            url=url))
     
     def assign_roles(self):
-        mafiosi_id, detective_id = roles_indices(self.players.keys(), 1, 1)
+
+        if len(self.players) >= config.MIN_PLAYERS_FOR_3_MAFIOSO:
+            mafiosi_id, detective_id = roles_indices(self.players.keys(), 3, 1)
+        elif len(self.players) >= config.MIN_PLAYERS_FOR_2_MAFIOSO:
+            mafiosi_id, detective_id = roles_indices(self.players.keys(), 2, 1)
+        else:
+            mafiosi_id, detective_id = roles_indices(self.players.keys(), 1, 1)
 
         self.players[detective_id].role = PlayerRole.DETECTIVE
         self.detective = self.players[detective_id]
