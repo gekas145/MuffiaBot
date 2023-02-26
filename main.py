@@ -58,54 +58,48 @@ async def register(update, context):
 
     user_id = update.message.from_user.id
     chat_id = int(context.args[0])
-    success = True
 
     if chat_id in chats and chats[chat_id].game_status == GameStatus.REGISTRATION:
         if user_id in chats[chat_id].players:
-            message_text = double_register_message
-            success = False
+            await context.bot.send_message(chat_id=user_id, text=double_register_message)
+            return
         else:
-            name = update.message.from_user.first_name 
-            if update.message.from_user.last_name is not None:
-                name += ' ' + update.message.from_user.last_name 
-            chats[chat_id].players[user_id] = Player(user_id, name)
-            message_text = successfull_register_message
-
+            first_name = update.message.from_user.first_name
+            last_name = update.message.from_user.last_name 
+            chats[chat_id].players[user_id] = Player(user_id, first_name, last_name)
     elif chat_id in chats:
-        message_text = late_register_message
-        success = False
-
-    else:
-        message_text = early_register_message
-        success = False
-
-    await context.bot.send_message(chat_id=user_id, text=message_text)
-    
-    if not success:
+        await context.bot.send_message(chat_id=user_id, text=late_register_message)
         return
-    
-    await update_registration_message(chat_id, context)
+    else:
+        await context.bot.send_message(chat_id=user_id, text=early_register_message)
+        return
 
     if len(chats[chat_id].players) == MAX_PLAYERS:
-        await handle_registration_message(chat_id, context)
 
         chats[chat_id].game_status = GameStatus.RUNNING
 
         remove_job_if_exists(str(chat_id), context)
         context.job_queue.run_once(finish_registration, 0, data=chat_id)
 
+        await handle_registration_message(chat_id, context)
+    
+    await update_registration_message(chat_id, context)
+    await context.bot.send_message(chat_id=user_id, text=successfull_register_message)
+
 
 async def finish_registration(context):
     chat_id = context.job.data
 
-    await handle_registration_message(chat_id, context)
+    if chats[chat_id].registration_message_id:
+        chats[chat_id].game_status = GameStatus.RUNNING
+
+        await handle_registration_message(chat_id, context)
 
     if len(chats[chat_id].players) < MIN_PLAYERS:
         await context.bot.send_message(chat_id=chat_id, text=not_enough_players_message)
         del chats[chat_id]
         return
 
-    chats[chat_id].game_status = GameStatus.RUNNING
     await context.bot.send_message(chat_id=chat_id, text='The game begins!')
     await asyncio.sleep(5)
     chats[chat_id].assign_roles()
@@ -128,9 +122,9 @@ def remove_job_if_exists(name, context):
 async def night(context):
     chat_id = context.job.data
 
-    await change_players_permissions(chat_id, context)
-
     chats[chat_id].nights_passed += 1
+
+    await change_players_permissions(chat_id, context)
 
     if chats[chat_id].nights_passed > 1:
         await handle_voters(chats[chat_id].players.values(), context)
@@ -160,10 +154,10 @@ async def night(context):
 
     chats[chat_id].max_voters = len(chats[chat_id].mafioso) + int(chats[chat_id].detective is not None)
     chats[chat_id].voted = 0
+    context.job_queue.run_once(day, night_voting_duration, name=str(chat_id) + '_day', data=chat_id)
+
     await send_mafia_vote(chat_id, context)
     await send_detective_action_vote(chat_id, context)
-    
-    context.job_queue.run_once(day, night_voting_duration, name=str(chat_id) + '_day', data=chat_id)
 
 
 async def day(context):
@@ -253,7 +247,6 @@ async def handle_voters(voters, context):
 
 async def voting_callback(update, context):
     query = update.callback_query
-    await query.answer()
 
     chat_id, who, chosen_player_id = parse_query(query.data)
     from_user_id = query.from_user.id
@@ -263,20 +256,11 @@ async def voting_callback(update, context):
     else:
         choice_text = 'Skip vote'
 
-    await query.edit_message_text(text=f'You selected: {choice_text}')
-
     chats[chat_id].players[from_user_id].vote_message_id = None
 
     voted_message = f'{chats[chat_id].players[from_user_id].name}'
     who_chosen = chats[chat_id].players[chosen_player_id].name if chosen_player_id != 0 else ''
     voted_message += f' voted for {who_chosen}' if chosen_player_id != 0 else ' skipped'
-
-    if who == 'maf':
-        for m_id in chats[chat_id].mafioso:
-            if m_id != from_user_id:
-                await context.bot.send_message(chat_id=m_id, text=voted_message)
-    else:
-        await context.bot.send_message(chat_id=chat_id, text=voted_message)
 
     chats[chat_id].voted += 1
     if chats[chat_id].voted == chats[chat_id].max_voters:
@@ -287,38 +271,49 @@ async def voting_callback(update, context):
             remove_job_if_exists(str(chat_id) + '_night', context)
             context.job_queue.run_once(night, 5, data=chat_id)
 
-
-async def detective_action_callback(update, context):
-    query = update.callback_query
     await query.answer()
+    await query.edit_message_text(text=f'You selected: {choice_text}')
+
+    if who == 'maf':
+        for m_id in chats[chat_id].mafioso:
+            if m_id != from_user_id:
+                await context.bot.send_message(chat_id=m_id, text=voted_message)
+    else:
+        await context.bot.send_message(chat_id=chat_id, text=voted_message)
+
+
+async def detective_action_choice_callback(update, context):
+    query = update.callback_query
 
     chat_id, action, _ = parse_query(query.data)
 
     reply_markup = chats[chat_id].build_detective_player_keyboard(action)
 
+    await query.answer()
     await query.edit_message_text(text=f'Whom do you want to {action[3:]}?')
     await query.edit_message_reply_markup(reply_markup=reply_markup)
 
 
-async def detective_player_callback(update, context):
+async def detective_player_choice_callback(update, context):
     query = update.callback_query
-    await query.answer()
 
     chat_id, action, chosen_player_id = parse_query(query.data)
 
     chats[chat_id].detective.vote_message_id = None
 
-    p = chats[chat_id].players[chosen_player_id]
-    if action == 'detcheck':
-        await query.edit_message_text(text=f'{p.name} is {p.role}')
-    else:
-        await query.edit_message_text(text=f'You decided to kill {p.name}, the day will show if you were right...')
-        chats[chat_id].detective.chosen_player_id = chosen_player_id
-        
     chats[chat_id].voted += 1
     if chats[chat_id].voted == chats[chat_id].max_voters:
         remove_job_if_exists(str(chat_id) + '_day', context)
         context.job_queue.run_once(day, 5, data=chat_id)
+
+    p = chats[chat_id].players[chosen_player_id]
+
+    # await query.answer()
+    if action == 'detcheck':
+        await query.edit_message_text(text=f'{p.name} is {p.role}')
+    else:
+        chats[chat_id].detective.chosen_player_id = chosen_player_id
+        await query.edit_message_text(text=f'You decided to kill {p.name}, the day will show if you were right...')
 
 
 async def change_players_permissions(chat_id, context, mute=True, all=False):
@@ -401,7 +396,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler('stop', stop))
     application.add_handler(CallbackQueryHandler(voting_callback, pattern='^-\d+_maf_\d+$'))
     application.add_handler(CallbackQueryHandler(voting_callback, pattern='^-\d+_dayvote_\d+$'))
-    application.add_handler(CallbackQueryHandler(detective_action_callback, pattern='^-\d+_det(?:kill|check)_$'))
-    application.add_handler(CallbackQueryHandler(detective_player_callback, pattern='^-\d+_det(?:kill|check)_\d+$'))
+    application.add_handler(CallbackQueryHandler(detective_action_choice_callback, pattern='^-\d+_det(?:kill|check)_$'))
+    application.add_handler(CallbackQueryHandler(detective_player_choice_callback, pattern='^-\d+_det(?:kill|check)_\d+$'))
 
     application.run_polling()
