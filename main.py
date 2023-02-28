@@ -130,7 +130,7 @@ async def night(context):
 
         summary_message = 'Day vote has ended\n'
         if victim is not None:
-            summary_message += f'{victim.name} was lynched, he was {victim.role}\n'
+            summary_message += f'{victim.markdown_link} was lynched, he was *{victim.role}*\n'
             chats[chat_id].handle_victims([victim])
         else:
             summary_message += 'Nobody was lynched\n'
@@ -143,11 +143,13 @@ async def night(context):
         await context.bot.send_message(chat_id=chat_id, text=summary_message, parse_mode='MarkdownV2')
         await asyncio.sleep(5)
 
-        game_ended = await check_game_ended(chat_id, context, 'after_day')
+        game_ended = await handle_game_end(chat_id, context, 'after_day')
         if game_ended:
             return
     
-    await context.bot.send_message(chat_id=chat_id, text=f'Night {chats[chat_id].nights_passed} begins')
+    await context.bot.send_message(chat_id=chat_id, 
+                                   text=f'*Night {chats[chat_id].nights_passed}* begins',
+                                   parse_mode='MarkdownV2')
     await asyncio.sleep(5)
 
     chats[chat_id].max_voters = len(chats[chat_id].mafioso) + int(chats[chat_id].detective is not None)
@@ -170,18 +172,18 @@ async def day(context):
         voters.append(chats[chat_id].detective)
     await handle_voters(voters, context)
 
-    day_message = f'Day {chats[chat_id].nights_passed} begins'
+    day_message = f'*Day {chats[chat_id].nights_passed}* begins'
     victims = chats[chat_id].get_night_victims()
     for victim in victims:
-        day_message += f'\n{victim.name} was killed during the night, he was {victim.role}'
+        day_message += f'\n{victim.markdown_link} was killed during the night, he was *{victim.role}*'
     chats[chat_id].handle_victims(victims)
 
     if len(victims) == 0:
         day_message += '\nNobody was killed during the night'
     
-    await context.bot.send_message(chat_id=chat_id, text=day_message)
+    await context.bot.send_message(chat_id=chat_id, text=day_message, parse_mode='MarkdownV2')
 
-    game_ended = await check_game_ended(chat_id, context, 'after_night')
+    game_ended = await handle_game_end(chat_id, context, 'after_night')
     if game_ended:
         return
     
@@ -321,12 +323,12 @@ async def detective_player_choice_callback(update, context):
 
     p = chats[chat_id].players[chosen_player_id]
 
-    # await query.answer()
     if action == 'detcheck':
-        await query.edit_message_text(text=f'{p.name} is {p.role}')
+        await query.edit_message_text(text=f'{p.markdown_link} is *{p.role}*', parse_mode='MarkdownV2')
     else:
         chats[chat_id].detective.chosen_player_id = chosen_player_id
-        await query.edit_message_text(text=f'You decided to kill {p.name}, the day will show if you were right...')
+        await query.edit_message_text(text=f'You decided to kill {p.markdown_link}, the day will show if you were right\.\.\.',
+                                      parse_mode='MarkdownV2')
 
 
 async def change_players_permissions(chat_id, context, mute=True, all=False):
@@ -346,6 +348,7 @@ async def change_players_permissions(chat_id, context, mute=True, all=False):
 
 async def handle_game_finish(chat_id, context):
     await handle_registration_message(chat_id, context)
+    await handle_voters(chats[chat_id].players.values(), context)
     await change_players_permissions(chat_id, context, mute=False, all=True)
     del chats[chat_id]
 
@@ -367,7 +370,7 @@ async def update_registration_message(chat_id, context):
                                         parse_mode='MarkdownV2')
 
 
-async def check_game_ended(chat_id, context, when):
+async def handle_game_end(chat_id, context, when):
     game_ending = chats[chat_id].check_game_ended(when)
 
     if game_ending is None:

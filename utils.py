@@ -14,9 +14,9 @@ class GameStatus(Enum):
 
 
 class PlayerRole(str, Enum):
-    INNOCENT = 'innocent'
-    DETECTIVE = 'detective'
-    MAFIOSO = 'mafioso'
+    INNOCENT = 'Innocent'
+    DETECTIVE = 'Detective'
+    MAFIOSO = 'Mafioso'
 
 
 class Player:
