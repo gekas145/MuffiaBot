@@ -6,9 +6,11 @@ import random
 class GameStatus(Enum):
     REGISTRATION = 0
     RUNNING = 1
-    MAFIA_WON = 2
-    INNOCENTS_WON = 3
-    DRAW = 4
+    DAY = 2
+    NIGHT = 3
+    MAFIA_WON = 4
+    INNOCENTS_WON = 5
+    DRAW = 6
 
 
 class PlayerRole(str, Enum):
@@ -95,27 +97,25 @@ class Chat:
     def build_mafiosi_keyboard(self):
         victims = [player for player in self.players.values() if player not in self.mafioso]
         keyboard = [[InlineKeyboardButton(vi.name, 
-                     callback_data=str(self.id) + '_maf_' + str(vi.id))] for vi in victims]
-        # keyboard.append([InlineKeyboardButton('Skip vote', 
-        #                                        callback_data=str(self.id) + '_maf_' + '0')])
+                     callback_data=f'{self.id}_maf_{self.nights_passed}_{vi.id}')] for vi in victims]
         return InlineKeyboardMarkup(keyboard)
     
     def build_detective_action_keyboard(self):
-        keyboard = [[InlineKeyboardButton('Kill', callback_data=str(self.id) + '_detkill_'),
-                     InlineKeyboardButton('Check', callback_data=str(self.id) + '_detcheck_')]]
+        keyboard = [[InlineKeyboardButton('Kill', callback_data=f'{self.id}_detkill_{self.nights_passed}_'),
+                     InlineKeyboardButton('Check', callback_data=f'{self.id}_detcheck_{self.nights_passed}_')]]
         return InlineKeyboardMarkup(keyboard)
 
     def build_detective_player_keyboard(self, action):
         keyboard = [[InlineKeyboardButton(p.name, 
-                     callback_data=str(self.id) + '_' + action + '_' + str(p.id))]\
+                     callback_data=f'{self.id}_{action}_{self.nights_passed}_{p.id}')]\
                      for p in self.players.values() if p.id != self.detective]
         return InlineKeyboardMarkup(keyboard)
     
     def build_general_keyboard(self, id):
         keyboard = [[InlineKeyboardButton(p.name, 
-                     callback_data=str(self.id) + '_dayvote_' + str(p.id))] for p in self.players.values() if p.id != id]
+                     callback_data=f'{self.id}_dayvote_{self.nights_passed}_{p.id}')] for p in self.players.values() if p.id != id]
         keyboard.append([InlineKeyboardButton('Skip vote', 
-                                               callback_data=str(self.id) + '_dayvote_' + '0')])
+                                               callback_data=f'{self.id}_dayvote_{self.nights_passed}_0')])
         return InlineKeyboardMarkup(keyboard)
     
     # called after night mafia vote

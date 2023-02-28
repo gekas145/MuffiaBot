@@ -1,7 +1,7 @@
 from utils import PlayerRole
 
 # players
-MAX_PLAYERS = 4
+MAX_PLAYERS = 3
 MIN_PLAYERS = 3
 MIN_PLAYERS_FOR_2_MAFIOSO = 10
 MIN_PLAYERS_FOR_3_MAFIOSO = 15
