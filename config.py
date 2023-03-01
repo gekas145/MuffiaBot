@@ -27,7 +27,8 @@ greetings = {PlayerRole.MAFIOSO : 'You are *Mafioso*\.\n'\
 help_message = 'Hi there, I am *MuffiaBot*\n'\
                 'I understand theese commands:\n'\
                 '• /help \- display this help message\n'\
-                '• /start \- start game\n'\
+                '• /start \- start registration\n'\
+                '• /begin \- finish registration and start game\n'\
                 '• /stop \- stop game'\
 
 

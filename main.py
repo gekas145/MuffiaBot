@@ -73,10 +73,6 @@ async def register(update, context):
 
     chat_in_chats = chat_id in chats
     
-    # if chat_in_chats and chats[chat_id].registration_message_id is None:
-    #     await context.bot.send_message(chat_id=user_id, text='Some error occured, please retry or check out \help')
-    #     return
-    
     if chat_in_chats and chats[chat_id].game_status == GameStatus.REGISTRATION:
         if user_id in chats[chat_id].players:
             await context.bot.send_message(chat_id=user_id, text=double_register_message)
@@ -175,8 +171,7 @@ async def night(context):
     await send_mafia_vote(chat_id, context)
     await send_detective_action_vote(chat_id, context)
 
-    if chats[chat_id].voted < chats[chat_id].max_voters:
-        context.job_queue.run_once(day, night_voting_duration, name=str(chat_id) + '_day', data=chat_id)
+    context.job_queue.run_once(day, night_voting_duration, name=str(chat_id) + '_day', data=chat_id)
 
 
 async def day(context):
@@ -221,8 +216,7 @@ async def day(context):
                                        reply_markup=reply_markup)
         p.vote_message_id = message.message_id
     
-    if chats[chat_id].voted < chats[chat_id].max_voters:
-        context.job_queue.run_once(night, day_voting_duration, name=str(chat_id) + '_night', data=chat_id)
+    context.job_queue.run_once(night, day_voting_duration, name=str(chat_id) + '_night', data=chat_id)
 
 
 async def send_mafia_vote(chat_id, context):
@@ -270,12 +264,12 @@ async def handle_voters(voters, context):
 async def voting_callback(update, context):
     query = update.callback_query
 
+    from_user_id = query.from_user.id
     chat_id, who, check_num, chosen_player_id = parse_query(query.data)
 
-    if check_late_query(chat_id, who, check_num):
+    if ignore_query(chat_id, from_user_id, who, check_num):
         return
 
-    from_user_id = query.from_user.id
     if chosen_player_id != 0:
         chats[chat_id].players[from_user_id].chosen_player_id = chosen_player_id
         choice_text = chats[chat_id].players[chosen_player_id].name
@@ -311,9 +305,10 @@ async def voting_callback(update, context):
 async def detective_action_choice_callback(update, context):
     query = update.callback_query
 
+    from_user_id = query.from_user.id
     chat_id, action, check_num, _ = parse_query(query.data)
 
-    if check_late_query(chat_id, action, check_num):
+    if ignore_query(chat_id, from_user_id, action, check_num):
         return
 
     reply_markup = chats[chat_id].build_detective_player_keyboard(action)
@@ -326,9 +321,10 @@ async def detective_action_choice_callback(update, context):
 async def detective_player_choice_callback(update, context):
     query = update.callback_query
 
+    from_user_id = query.from_user.id
     chat_id, action, check_num, chosen_player_id = parse_query(query.data)
 
-    if check_late_query(chat_id, action, check_num):
+    if ignore_query(chat_id, from_user_id, action, check_num):
         return
 
     chats[chat_id].detective.vote_message_id = None
@@ -412,7 +408,9 @@ async def handle_game_end(chat_id, context, when):
     return True
 
 
-def check_late_query(chat_id, who, check_num):
+def ignore_query(chat_id, player_id, who, check_num):
+    if chats[chat_id].players[player_id].vote_message_id is None:
+        return True
     if (who == 'maf' or 'det' in who) and chats[chat_id].game_status != GameStatus.NIGHT:
         return True
     if chats[chat_id].nights_passed != check_num:
