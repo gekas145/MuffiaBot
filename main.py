@@ -1,5 +1,5 @@
 import os, asyncio
-from telegram import ChatPermissions, helpers
+from telegram import ChatPermissions
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, filters
 from config import *
 from utils import *
@@ -41,6 +41,18 @@ async def start(update, context):
                                        parse_mode='MarkdownV2')
 
 
+async def begin(update, context):
+    chat_id = update.effective_chat.id
+
+    if chat_id not in chats or chats[chat_id].game_status != GameStatus.REGISTRATION:
+        await context.bot.send_message(chat_id=chat_id, text='There is no active registration in this chat')
+        return
+    
+    chats[chat_id].game_status = GameStatus.RUNNING
+    remove_job_if_exists(str(chat_id), context)
+    context.job_queue.run_once(finish_registration, 0, data=chat_id)
+
+
 async def stop(update, context):
     global chats
 
@@ -60,6 +72,11 @@ async def register(update, context):
     chat_id = int(context.args[0])
 
     chat_in_chats = chat_id in chats
+    
+    # if chat_in_chats and chats[chat_id].registration_message_id is None:
+    #     await context.bot.send_message(chat_id=user_id, text='Some error occured, please retry or check out \help')
+    #     return
+    
     if chat_in_chats and chats[chat_id].game_status == GameStatus.REGISTRATION:
         if user_id in chats[chat_id].players:
             await context.bot.send_message(chat_id=user_id, text=double_register_message)
@@ -419,6 +436,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler('help', help))
     application.add_handler(CommandHandler('start', register, filters.Regex('-\d+')))
     application.add_handler(CommandHandler('start', start))
+    application.add_handler(CommandHandler('begin', begin))
     application.add_handler(CommandHandler('stop', stop))
     application.add_handler(CallbackQueryHandler(voting_callback, pattern='^-\d+_maf_\d+_\d+$'))
     application.add_handler(CallbackQueryHandler(voting_callback, pattern='^-\d+_dayvote_\d+_\d+$'))
