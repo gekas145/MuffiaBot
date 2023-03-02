@@ -28,7 +28,8 @@ async def start(update, context):
         context.job_queue.run_once(finish_registration, 
                                    registration_duration, 
                                    name=str(chat_id), 
-                                   data=chat_id)
+                                   data=chats[chat_id].game_id, 
+                                   chat_id=chat_id)
 
         message = await context.bot.send_message(chat_id=chat_id, 
                                                  text=game_start_message,
@@ -50,7 +51,7 @@ async def begin(update, context):
     
     chats[chat_id].game_status = GameStatus.RUNNING
     remove_job_if_exists(str(chat_id), context)
-    context.job_queue.run_once(finish_registration, 0, data=chat_id)
+    context.job_queue.run_once(finish_registration, 0, data=chats[chat_id].game_id, chat_id=chat_id)
 
 
 async def stop(update, context):
@@ -60,8 +61,14 @@ async def stop(update, context):
     if chat_id not in chats:
         message_text = game_idle_message
     else:
-        await handle_game_finish(chat_id, context)
+        remove_job_if_exists(str(chat_id), context)
+        remove_job_if_exists(str(chat_id) + '_day', context)
+        remove_job_if_exists(str(chat_id) + '_night', context)
+
+        chats[chat_id].game_id = None
+
         message_text = game_stopped_message
+        await handle_game_finish(chat_id, context)
     
     await context.bot.send_message(chat_id=chat_id, text=message_text)
 
@@ -72,6 +79,10 @@ async def register(update, context):
     chat_id = int(context.args[0])
 
     chat_in_chats = chat_id in chats
+
+    if chat_in_chats and chats[chat_id].registration_message_id is None:
+        await context.bot.send_message(chat_id=chat_id, text='An error occured, please retry')
+        return
     
     if chat_in_chats and chats[chat_id].game_status == GameStatus.REGISTRATION:
         if user_id in chats[chat_id].players:
@@ -93,14 +104,14 @@ async def register(update, context):
         chats[chat_id].game_status = GameStatus.RUNNING
 
         remove_job_if_exists(str(chat_id), context)
-        context.job_queue.run_once(finish_registration, 0, data=chat_id)
+        context.job_queue.run_once(finish_registration, 0, data=chats[chat_id].game_id, chat_id=chat_id)
     
     await update_registration_message(chat_id, context)
     await context.bot.send_message(chat_id=user_id, text=successfull_register_message)
 
 
 async def finish_registration(context):
-    chat_id = context.job.data
+    chat_id = context.job.chat_id
 
     chats[chat_id].game_status = GameStatus.RUNNING
     await handle_registration_message(chat_id, context)
@@ -118,7 +129,7 @@ async def finish_registration(context):
     if len(chats[chat_id].mafioso) > 1:
         await inform_mafia_team(chat_id, context)
 
-    context.job_queue.run_once(night, 5, data=chat_id)
+    context.job_queue.run_once(night, 5, data=chats[chat_id].game_id, chat_id=chat_id)
 
 
 def remove_job_if_exists(name, context):
@@ -130,7 +141,7 @@ def remove_job_if_exists(name, context):
 
 
 async def night(context):
-    chat_id = context.job.data
+    chat_id = context.job.chat_id
 
     chats[chat_id].nights_passed += 1
     chats[chat_id].game_status = GameStatus.NIGHT
@@ -171,11 +182,15 @@ async def night(context):
     await send_mafia_vote(chat_id, context)
     await send_detective_action_vote(chat_id, context)
 
-    context.job_queue.run_once(day, night_voting_duration, name=str(chat_id) + '_day', data=chat_id)
+    context.job_queue.run_once(day, 
+                               night_voting_duration, 
+                               name=str(chat_id) + '_day', 
+                               data=chats[chat_id].game_id, 
+                               chat_id=chat_id)
 
 
 async def day(context):
-    chat_id = context.job.data
+    chat_id = context.job.chat_id
 
     chats[chat_id].game_status = GameStatus.DAY
 
@@ -216,7 +231,11 @@ async def day(context):
                                        reply_markup=reply_markup)
         p.vote_message_id = message.message_id
     
-    context.job_queue.run_once(night, day_voting_duration, name=str(chat_id) + '_night', data=chat_id)
+    context.job_queue.run_once(night, 
+                               day_voting_duration, 
+                               name=str(chat_id) + '_night', 
+                               data=chats[chat_id].game_id, 
+                               chat_id=chat_id)
 
 
 async def send_mafia_vote(chat_id, context):
@@ -286,10 +305,10 @@ async def voting_callback(update, context):
     if chats[chat_id].voted == chats[chat_id].max_voters:
         if who == 'maf':
             remove_job_if_exists(str(chat_id) + '_day', context)
-            context.job_queue.run_once(day, 5, data=chat_id)
+            context.job_queue.run_once(day, 5, data=chat_id, chat_id=chat_id)
         else:
             remove_job_if_exists(str(chat_id) + '_night', context)
-            context.job_queue.run_once(night, 5, data=chat_id)
+            context.job_queue.run_once(night, 5, data=chats[chat_id].game_id, chat_id=chat_id)
 
     await query.answer()
     await query.edit_message_text(text=f'You selected: {choice_text}')
@@ -332,7 +351,7 @@ async def detective_player_choice_callback(update, context):
     chats[chat_id].voted += 1
     if chats[chat_id].voted == chats[chat_id].max_voters:
         remove_job_if_exists(str(chat_id) + '_day', context)
-        context.job_queue.run_once(day, 5, data=chat_id)
+        context.job_queue.run_once(day, 5, data=chats[chat_id].game_id, chat_id=chat_id)
 
     p = chats[chat_id].players[chosen_player_id]
 
@@ -406,6 +425,10 @@ async def handle_game_end(chat_id, context, when):
     await handle_game_finish(chat_id, context)
 
     return True
+
+
+def check_game_stopped(chat_id, game_id):
+    return chat_id not in chats or chats[chat_id].game_id != game_id
 
 
 def ignore_query(chat_id, player_id, who, check_num):

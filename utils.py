@@ -1,5 +1,6 @@
 from enum import Enum
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, helpers
+from datetime import datetime
 import config
 import random
 
@@ -46,6 +47,7 @@ class Player:
 class Chat:
     def __init__(self, id, bot_username):
         self.id = id # telegram chat id
+        self.game_id = int(datetime.now().strftime("%Y%m%d%H%M%S"))
         self.game_status = GameStatus.REGISTRATION
         self.registration_message_id = None
         self.players = {}
