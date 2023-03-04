@@ -46,7 +46,7 @@ async def begin(update, context):
     chat_id = update.effective_chat.id
 
     if chat_id not in chats or chats[chat_id].game_status != GameStatus.REGISTRATION:
-        await context.bot.send_message(chat_id=chat_id, text='There is no active registration in this chat')
+        await context.bot.send_message(chat_id=chat_id, text=no_active_registration_message)
         return
     
     chats[chat_id].game_status = GameStatus.RUNNING
@@ -80,22 +80,22 @@ async def register(update, context):
     chat_in_chats = chat_id in chats
 
     if chat_in_chats and chats[chat_id].registration_message_id is None:
-        await context.bot.send_message(chat_id=chat_id, text='An error occured, please retry')
+        await context.bot.send_message(chat_id=chat_id, text=registration_error_message)
         return
     
     if chat_in_chats and chats[chat_id].game_status == GameStatus.REGISTRATION:
         if user_id in chats[chat_id].players:
-            await context.bot.send_message(chat_id=user_id, text=double_register_message)
+            await context.bot.send_message(chat_id=user_id, text=double_registration_message)
             return
         else:
             first_name = update.message.from_user.first_name
             last_name = update.message.from_user.last_name 
             chats[chat_id].players[user_id] = Player(user_id, first_name, last_name)
     elif chat_in_chats:
-        await context.bot.send_message(chat_id=user_id, text=late_register_message)
+        await context.bot.send_message(chat_id=user_id, text=late_registration_message)
         return
     else:
-        await context.bot.send_message(chat_id=user_id, text=early_register_message)
+        await context.bot.send_message(chat_id=user_id, text=early_registration_message)
         return
 
     if len(chats[chat_id].players) == MAX_PLAYERS:
@@ -106,7 +106,7 @@ async def register(update, context):
         context.job_queue.run_once(finish_registration, 0, data=chats[chat_id].game_id, chat_id=chat_id)
     
     await update_registration_message(chat_id, context)
-    await context.bot.send_message(chat_id=user_id, text=successfull_register_message)
+    await context.bot.send_message(chat_id=user_id, text=successfull_registration_message)
 
 
 async def finish_registration(context):
@@ -124,7 +124,7 @@ async def finish_registration(context):
         await context.bot.send_message(chat_id=chat_id, text=not_enough_players_message)
         return
 
-    await context.bot.send_message(chat_id=chat_id, text='The game begins!')
+    await context.bot.send_message(chat_id=chat_id, text=game_begins_message)
     await asyncio.sleep(5)
     if check_game_stopped(chat_id, game_id):
         return
@@ -342,7 +342,7 @@ async def inform_mafia_team(context):
 async def handle_unvoted(context, id, message_id):
     await context.bot.edit_message_text(chat_id=id, 
                                         message_id=message_id,
-                                        text='Voting time expired')
+                                        text=voting_time_expired_message)
 
 
 async def handle_voters(voters, context):

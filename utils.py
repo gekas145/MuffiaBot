@@ -65,11 +65,13 @@ class Chat:
     def assign_roles(self):
 
         if len(self.players) >= config.MIN_PLAYERS_FOR_3_MAFIOSO:
-            mafiosi_id, detective_id = roles_indices(self.players.keys(), 3, 1)
+            mafiosi_num = 3
         elif len(self.players) >= config.MIN_PLAYERS_FOR_2_MAFIOSO:
-            mafiosi_id, detective_id = roles_indices(self.players.keys(), 2, 1)
+            mafiosi_num = 2
         else:
-            mafiosi_id, detective_id = roles_indices(self.players.keys(), 1, 1)
+            mafiosi_num = 1
+        
+        mafiosi_id, detective_id = roles_indices(self.players.keys(), mafiosi_num, 1)
 
         self.players[detective_id].role = PlayerRole.DETECTIVE
         self.detective = self.players[detective_id]

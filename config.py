@@ -36,6 +36,7 @@ help_message = 'Hi there, I am *MuffiaBot*\n'\
 game_start_message = 'Starting new game\!'
 game_in_progress_message = 'Game is already in progress'
 game_private_message = "You can't play alone, can you?"
+no_active_registration_message = 'There is no active registration in this chat'
 
 # stopping the game
 game_idle_message = 'Game is not running, nothing to stop'
@@ -43,12 +44,14 @@ game_stopped_message = 'Stopped the game'
 not_enough_players_message = 'Not enough players, game will not begin'
 
 # registration
-successfull_register_message = 'You have successfully registered!'
-early_register_message = 'Unable to register, start game first'
-late_register_message = 'Too late, wait for current game to stop'
-double_register_message = 'You are already registered'
+successfull_registration_message = 'You have successfully registered!'
+early_registration_message = 'Unable to register, start game first'
+late_registration_message = 'Too late, wait for current game to stop'
+double_registration_message = 'You are already registered'
+registration_error_message = 'An error occured, please retry'
 
 # during the game
+game_begins_message = 'The game begins!'
 conversation_message = f'You now have *{conversation_duration} seconds* to discuss the situation'
 day_vote_message = f"It's time to lynch mafia, you've got *{day_voting_duration} seconds* to make your choice"
-
+voting_time_expired_message = 'Voting time expired'
