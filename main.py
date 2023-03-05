@@ -292,9 +292,12 @@ async def send_mafia_vote(context):
         message = await context.bot.send_message(chat_id=m.id, 
                                                  text='Choose victim: ', 
                                                  reply_markup=reply_markup)
-        m.vote_message_id = message.message_id
+        
         if check_game_stopped(context.job.chat_id, context.job.data):
             return True
+        
+        m.vote_message_id = message.message_id
+
     return False
 
 
@@ -306,10 +309,11 @@ async def send_day_vote(context):
         message = await context.bot.send_message(chat_id=p.id, 
                                        text='Whom do you suspect: ',
                                        reply_markup=reply_markup)
-        p.vote_message_id = message.message_id
         
         if check_game_stopped(context.job.chat_id, context.job.data):
             return True
+
+        p.vote_message_id = message.message_id
     
     return False
 
@@ -322,9 +326,13 @@ async def send_detective_action_vote(context):
     message = await context.bot.send_message(chat_id=chats[context.job.chat_id].detective.id, 
                                              text='What to do: ', 
                                              reply_markup=reply_markup)
+    
+    if check_game_stopped(context.job.chat_id, context.job.data):
+        return True
+    
     chats[context.job.chat_id].detective.vote_message_id = message.message_id
 
-    return check_game_stopped(context.job.chat_id, context.job.data)
+    return False
 
 
 async def send_greetings(context):
