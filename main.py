@@ -25,17 +25,17 @@ async def start(update, context):
                                        parse_mode='MarkdownV2')
     elif chat_id not in chats:
         chats[chat_id] = Chat(chat_id, context.bot.username)
-        context.job_queue.run_once(finish_registration, 
-                                   registration_duration, 
-                                   name=str(chat_id), 
-                                   data=chats[chat_id].game_id, 
-                                   chat_id=chat_id)
 
         message = await context.bot.send_message(chat_id=chat_id, 
                                                  text=game_start_message,
                                                  reply_markup=chats[chat_id].registration_keyboard, 
                                                  parse_mode='MarkdownV2')
         chats[chat_id].registration_message_id = message.message_id
+        context.job_queue.run_once(finish_registration, 
+                                   registration_duration, 
+                                   name=str(chat_id), 
+                                   data=chats[chat_id].game_id, 
+                                   chat_id=chat_id)
     else:
         await context.bot.send_message(chat_id=chat_id, 
                                        text=game_in_progress_message, 
@@ -51,7 +51,11 @@ async def begin(update, context):
     
     chats[chat_id].game_status = GameStatus.RUNNING
     remove_job_if_exists(str(chat_id), context)
-    context.job_queue.run_once(finish_registration, 0, data=chats[chat_id].game_id, chat_id=chat_id)
+    context.job_queue.run_once(finish_registration, 
+                               1, 
+                               data=chats[chat_id].game_id, 
+                               name=str(chat_id),
+                               chat_id=chat_id)
 
 
 async def stop(update, context):
@@ -84,13 +88,15 @@ async def register(update, context):
         return
     
     if chat_in_chats and chats[chat_id].game_status == GameStatus.REGISTRATION:
+
         if user_id in chats[chat_id].players:
             await context.bot.send_message(chat_id=user_id, text=double_registration_message)
             return
-        else:
-            first_name = update.message.from_user.first_name
-            last_name = update.message.from_user.last_name 
-            chats[chat_id].players[user_id] = Player(user_id, first_name, last_name)
+        
+        first_name = update.message.from_user.first_name
+        last_name = update.message.from_user.last_name 
+        chats[chat_id].players[user_id] = Player(user_id, first_name, last_name)
+
     elif chat_in_chats:
         await context.bot.send_message(chat_id=user_id, text=late_registration_message)
         return
@@ -103,7 +109,11 @@ async def register(update, context):
         chats[chat_id].game_status = GameStatus.RUNNING
 
         remove_job_if_exists(str(chat_id), context)
-        context.job_queue.run_once(finish_registration, 0, data=chats[chat_id].game_id, chat_id=chat_id)
+        context.job_queue.run_once(finish_registration, 
+                                   1, 
+                                   data=chats[chat_id].game_id, 
+                                   name=str(chat_id),
+                                   chat_id=chat_id)
     
     await update_registration_message(chat_id, context)
     await context.bot.send_message(chat_id=user_id, text=successfull_registration_message)
@@ -139,7 +149,11 @@ async def finish_registration(context):
         if game_stopped:
             return
 
-    context.job_queue.run_once(night, 5, data=chats[chat_id].game_id, chat_id=chat_id)
+    context.job_queue.run_once(night, 
+                               5, 
+                               data=chats[chat_id].game_id, 
+                               name=str(chat_id) + '_night',
+                               chat_id=chat_id)
 
 
 def remove_job_if_exists(name, context):
@@ -378,10 +392,18 @@ async def voting_callback(update, context):
     if chats[chat_id].voted == chats[chat_id].max_voters:
         if who == 'maf':
             remove_job_if_exists(str(chat_id) + '_day', context)
-            context.job_queue.run_once(day, 5, data=chats[chat_id].game_id, chat_id=chat_id)
+            context.job_queue.run_once(day, 
+                                       5, 
+                                       data=chats[chat_id].game_id, 
+                                       name=str(chat_id) + '_day',
+                                       chat_id=chat_id)
         else:
             remove_job_if_exists(str(chat_id) + '_night', context)
-            context.job_queue.run_once(night, 5, data=chats[chat_id].game_id, chat_id=chat_id)
+            context.job_queue.run_once(night, 
+                                       5, 
+                                       data=chats[chat_id].game_id, 
+                                       name=str(chat_id) + '_night',
+                                       chat_id=chat_id)
 
     await query.answer()
     await query.edit_message_text(text=f'You selected: {choice_text}')
@@ -430,7 +452,11 @@ async def detective_player_choice_callback(update, context):
     chats[chat_id].voted += 1
     if chats[chat_id].voted == chats[chat_id].max_voters:
         remove_job_if_exists(str(chat_id) + '_day', context)
-        context.job_queue.run_once(day, 5, data=chats[chat_id].game_id, chat_id=chat_id)
+        context.job_queue.run_once(day, 
+                                   5, 
+                                   data=chats[chat_id].game_id, 
+                                   name=str(chat_id) + '_day',
+                                   chat_id=chat_id)
 
     p = chats[chat_id].players[chosen_player_id]
 
