@@ -8,13 +8,13 @@ from utils import *
 TELEGRAM_API_KEY = os.getenv('TELEGRAM_API_KEY')
 chats = {}
 
-
+# /help
 async def help(update, context):
     await context.bot.send_message(chat_id=update.effective_chat.id, 
                                    text=help_message, 
                                    parse_mode='MarkdownV2')
 
-
+# /start
 async def start(update, context):
     global chats
     chat_id = update.effective_chat.id
@@ -41,7 +41,7 @@ async def start(update, context):
                                        text=game_in_progress_message, 
                                        parse_mode='MarkdownV2')
 
-
+# /begin
 async def begin(update, context):
     chat_id = update.effective_chat.id
 
@@ -57,7 +57,7 @@ async def begin(update, context):
                                name=str(chat_id),
                                chat_id=chat_id)
 
-
+# /stop
 async def stop(update, context):
     global chats
 
@@ -75,7 +75,7 @@ async def stop(update, context):
     
     await context.bot.send_message(chat_id=chat_id, text=message_text)
 
-    
+# called when user presses registration button
 async def register(update, context):
 
     user_id = update.message.from_user.id
@@ -171,7 +171,7 @@ async def night(context):
     chats[chat_id].nights_passed += 1
     chats[chat_id].game_status = GameStatus.NIGHT
 
-    game_stopped = await change_players_permissions(chat_id, context)
+    game_stopped = await change_players_permissions(chat_id, context, game_id=game_id)
     if game_stopped:
         return
 
@@ -199,7 +199,7 @@ async def night(context):
         if check_game_stopped(chat_id, game_id):
             return
 
-        game_ended = await handle_game_end(chat_id, context, 'after_day')
+        game_ended = await check_game_finish(chat_id, context, 'after_day')
         if game_ended:
             return
     
@@ -255,7 +255,7 @@ async def day(context):
     if check_game_stopped(chat_id, game_id):
         return
 
-    game_ended = await handle_game_end(chat_id, context, 'after_night')
+    game_ended = await check_game_finish(chat_id, context, 'after_night')
     if game_ended:
         return
     
@@ -366,7 +366,7 @@ async def handle_unvoted(context, id, message_id):
                                         message_id=message_id,
                                         text=voting_time_expired_message)
 
-
+# cleans unused keyboard markups
 async def handle_voters(voters, context):
     for vo in voters:
         if vo.vote_message_id is not None:
@@ -374,7 +374,7 @@ async def handle_voters(voters, context):
             vo.vote_message_id = None
             await handle_unvoted(context, vo.id, message_id)
 
-
+# used for both mafia and day vote
 async def voting_callback(update, context):
     query = update.callback_query
 
@@ -477,13 +477,13 @@ async def detective_player_choice_callback(update, context):
         await query.edit_message_text(text=f'You decided to kill {p.markdown_link}, the day will show if you were right\.\.\.',
                                       parse_mode='MarkdownV2')
 
-
-async def change_players_permissions(chat_id, context, mute=True, all=False):
+# mutes/unmutes players on night/day
+async def change_players_permissions(chat_id, context, game_id=None, mute=True, all=False):
     permissions = ChatPermissions(can_send_messages=not mute)
     for p in chats[chat_id].players.values():
         try:
             await context.bot.restrict_chat_member(chat_id, p.id, permissions)
-            if mute and check_game_stopped(chat_id, context.job.data):
+            if mute and check_game_stopped(chat_id, game_id):
                 return True
         except Exception: # group owners will not be muted, cuz no idea how to
             pass
@@ -491,7 +491,7 @@ async def change_players_permissions(chat_id, context, mute=True, all=False):
         for p in chats[chat_id].killed_players:
             try:
                 await context.bot.restrict_chat_member(chat_id, p.id, permissions)
-                if mute and check_game_stopped(chat_id, context.job.data):
+                if mute and check_game_stopped(chat_id, game_id):
                     return True
             except Exception:
                 pass
@@ -506,7 +506,7 @@ async def handle_game_finish(chat_id, context):
     await change_players_permissions(chat_id, context, mute=False, all=True)
     del chats[chat_id]
 
-
+# removes registration button from registration message
 async def handle_registration_message(chat_id, context):
     if chats[chat_id].registration_message_id:
         message_id = chats[chat_id].registration_message_id
@@ -515,7 +515,7 @@ async def handle_registration_message(chat_id, context):
                                                     message_id=message_id, 
                                                     reply_markup=None)
 
-
+# updates registration message with nicknames of newly joined users
 async def update_registration_message(chat_id, context):
     text = game_start_message + '\nRegistered players:\n' + chats[chat_id].get_alive_players_description()
     await context.bot.edit_message_text(chat_id=chat_id,
@@ -525,7 +525,7 @@ async def update_registration_message(chat_id, context):
                                         parse_mode='MarkdownV2')
 
 
-async def handle_game_end(chat_id, context, when):
+async def check_game_finish(chat_id, context, when):
     game_ending = chats[chat_id].check_game_ended(when)
 
     if game_ending is None:
@@ -544,6 +544,7 @@ async def handle_game_end(chat_id, context, when):
         game_finished_message += f'Detective: {chats[chat_id].detective.name}\n'
         game_finished_message += f'Mafioso: {list(chats[chat_id].mafioso.values())[0].name}'
 
+    # as this function will be called in each case if game has to finish, it was placed here
     await handle_game_finish(chat_id, context)
     await context.bot.send_message(chat_id, text=game_finished_message)
 
@@ -555,18 +556,26 @@ def check_game_stopped(chat_id, game_id):
 
 
 def ignore_query(chat_id, game_id, player_id, who, check_num):
+    # if query came too late and game already ended or was stopped
     if check_game_stopped(chat_id, game_id):
         return True
+    # if query came too early
     if chats[chat_id].players[player_id].vote_message_id is None:
         return True
+    
+    # if query came too late, but game is still going on
     if (who == 'maf' or 'det' in who) and chats[chat_id].game_status != GameStatus.NIGHT:
         return True
     if chats[chat_id].nights_passed != check_num:
         return True
+    
     return False
 
 
 def parse_query(query):
+    # each query looks like
+    # [chat_id]_[game_id]_action_[night_number]_[player_id]
+    # player_id may be absent in some cases
     res = query.split('_')
     res[0] = int(res[0])
     res[1] = int(res[1])
