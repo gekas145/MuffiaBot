@@ -1,4 +1,4 @@
-import os, asyncio
+import os, asyncio, logging
 from telegram import ChatPermissions
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, filters
 from config import *
@@ -7,6 +7,8 @@ from utils import *
 
 TELEGRAM_API_KEY = os.getenv('TELEGRAM_API_KEY')
 chats = {}
+
+logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 
 # /help
 async def help(update, context):
