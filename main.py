@@ -27,11 +27,16 @@ async def start(update, context):
                                        parse_mode='MarkdownV2')
     elif chat_id not in chats:
         chats[chat_id] = Chat(chat_id, context.bot.username)
+        game_id = chats[chat_id].game_id
 
         message = await context.bot.send_message(chat_id=chat_id, 
                                                  text=game_start_message,
                                                  reply_markup=chats[chat_id].registration_keyboard, 
                                                  parse_mode='MarkdownV2')
+        
+        if check_game_stopped(chat_id, game_id):
+            return
+        
         chats[chat_id].registration_message_id = message.message_id
         context.job_queue.run_once(finish_registration, 
                                    registration_duration, 
