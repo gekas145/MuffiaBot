@@ -235,24 +235,22 @@ class Chat:
         if len(self.mafioso) == 0:
             return GameStatus.INNOCENTS_WON
         
-        if len(self.players) == 2 and len(self.mafioso) == 1 and self.detective:
+        if len(self.players) == 2 and len(self.mafioso) == 1 and (self.detective or self.doctor):
             return GameStatus.DRAW
 
-        if 2*len(self.mafioso) >= len(self.players) + 1:
+        lower_bound = len(self.players)
+        if self.detective and self.doctor:
+            if when == 'after_day':
+                lower_bound += 2
+            else:
+                lower_bound += 1
+        elif self.detective and not self.doctor:
+            lower_bound += 1
+        elif not self.detective and not self.doctor and when == 'after_day':
+            lower_bound -= 1
+        
+        if 2*len(self.mafioso) >= lower_bound:
             return GameStatus.MAFIA_WON
-
-        if when == 'after_day' and self.detective is None:
-            if 2*len(self.mafioso) >= len(self.players) - 1 and not self.doctor:
-                return GameStatus.MAFIA_WON
-            else:
-                return None
-
-        if when == 'after_night' and self.detective is None:
-            if 2*len(self.mafioso) >= len(self.players):
-                return GameStatus.MAFIA_WON
-            else:
-                return None
-
         return None
 
 # returns dict which stores unique items from iterable as keys
