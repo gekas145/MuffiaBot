@@ -2,7 +2,7 @@ from utils import PlayerRole
 
 # players
 MAX_PLAYERS = 20
-MIN_PLAYERS = 5
+MIN_PLAYERS = 4
 MIN_PLAYERS_FOR_2_MAFIOSO = 10
 MIN_PLAYERS_FOR_3_MAFIOSO = 15
 
@@ -16,13 +16,16 @@ day_voting_duration = 20
 # bot messages
 greetings = {PlayerRole.MAFIOSO : 'You are *Mafioso*\.\n'\
                                   'Your main goal is to eliminate innocents\.\n'\
-                                  "Good luck and don't let other players guess who you really are\!",
-             PlayerRole.INNOCENT: 'You are *Innocent*\.\n'\
-                                  "There's not much you can to stop mafia\,\n"\
+                                  "Good luck and don't let other players guess who you are\!",
+            PlayerRole.INNOCENT: 'You are *Innocent*\.\n'\
+                                  "There's not much you can do to stop mafia\,\n"\
                                   'but if you cooperate with other innocents your city might stand a chance\.',
-             PlayerRole.DETECTIVE: 'You are *Detective*\,\n'\
+            PlayerRole.DETECTIVE: 'You are *Detective*\,\n'\
                                    "the only hope of this city in fight against mafia\.\n"\
-                                   'Good luck\!'}
+                                   'Good luck\!',
+            PlayerRole.DOCTOR: 'You are *Doctor*\,\n'\
+                                'you can heal players killed during the night\.\n'\
+                                "Beware of helping mafia and also don't be too selfish\!"}
 
 help_message = 'Hi there, I am *MuffiaBot*\n'\
                 'I understand theese commands:\n'\

@@ -217,7 +217,7 @@ async def night(context):
     if check_game_stopped(chat_id, game_id):
         return
 
-    chats[chat_id].max_voters = len(chats[chat_id].mafioso) + int(chats[chat_id].detective is not None)
+    chats[chat_id].max_voters = len(chats[chat_id].mafioso) + int(chats[chat_id].detective is not None) + int(chats[chat_id].doctor is not None)
     chats[chat_id].voted = 0
 
     game_stopped = await send_mafia_vote(context)
@@ -225,6 +225,10 @@ async def night(context):
         return
     
     game_stopped = await send_detective_action_vote(context)
+    if game_stopped:
+        return
+    
+    game_stopped = await send_doctor_vote(context)
     if game_stopped:
         return
 
@@ -241,10 +245,7 @@ async def day(context):
 
     chats[chat_id].game_status = GameStatus.DAY
 
-    voters = list(chats[chat_id].mafioso.values())
-    if chats[chat_id].detective is not None:
-        voters.append(chats[chat_id].detective)
-
+    voters = chats[chat_id].get_night_voters()
     await handle_voters(voters, context)
     if check_game_stopped(chat_id, game_id):
         return
@@ -322,6 +323,23 @@ async def send_day_vote(context):
 
         p.vote_message_id = message.message_id
     
+    return False
+
+
+async def send_doctor_vote(context):
+    if chats[context.job.chat_id].doctor is None:
+        return
+    
+    reply_markup = chats[context.job.chat_id].build_doctor_keyboard()
+    message = await context.bot.send_message(chat_id=chats[context.job.chat_id].doctor.id,
+                                             text='Whom do you want to heal: ',
+                                             reply_markup=reply_markup)
+    
+    if check_game_stopped(context.job.chat_id, context.job.data):
+        return True
+    
+    chats[context.job.chat_id].doctor.vote_message_id = message.message_id
+
     return False
 
 
@@ -404,21 +422,13 @@ async def voting_callback(update, context):
     voted_message += f' voted for {who_chosen}' if chosen_player_id != 0 else ' skipped'
 
     chats[chat_id].voted += 1
-    if chats[chat_id].voted == chats[chat_id].max_voters:
-        if who == 'maf':
-            remove_job_if_exists(str(chat_id) + '_day', context)
-            context.job_queue.run_once(day, 
-                                       5, 
-                                       data=chats[chat_id].game_id, 
-                                       name=str(chat_id) + '_day',
-                                       chat_id=chat_id)
-        else:
-            remove_job_if_exists(str(chat_id) + '_night', context)
-            context.job_queue.run_once(night, 
-                                       5, 
-                                       data=chats[chat_id].game_id, 
-                                       name=str(chat_id) + '_night',
-                                       chat_id=chat_id)
+
+    if who == 'maf':
+        when = 'day'
+    else:
+        when = 'night'
+
+    handle_all_voted(chat_id, when, context)
 
     await query.answer()
     await query.edit_message_text(text=f'You selected: {choice_text}')
@@ -465,13 +475,7 @@ async def detective_player_choice_callback(update, context):
     chats[chat_id].detective.vote_message_id = None
 
     chats[chat_id].voted += 1
-    if chats[chat_id].voted == chats[chat_id].max_voters:
-        remove_job_if_exists(str(chat_id) + '_day', context)
-        context.job_queue.run_once(day, 
-                                   5, 
-                                   data=chats[chat_id].game_id, 
-                                   name=str(chat_id) + '_day',
-                                   chat_id=chat_id)
+    handle_all_voted(chat_id, 'day', context)
 
     p = chats[chat_id].players[chosen_player_id]
 
@@ -483,6 +487,35 @@ async def detective_player_choice_callback(update, context):
         await query.answer()
         await query.edit_message_text(text=f'You decided to kill {p.markdown_link}, the day will show if you were right\.\.\.',
                                       parse_mode='MarkdownV2')
+
+
+async def doctor_callback(update, context):
+    query = update.callback_query
+
+    from_user_id = query.from_user.id
+    chat_id, game_id, action, check_num, chosen_player_id = parse_query(query.data)
+
+    if ignore_query(chat_id, game_id, from_user_id, action, check_num):
+        return
+    
+    chats[chat_id].doctor.vote_message_id = None
+    chats[chat_id].doctor.chosen_player_id = chosen_player_id
+
+    chats[chat_id].voted += 1
+    handle_all_voted(chat_id, 'day', context)
+    
+    p = chats[chat_id].players[chosen_player_id]
+
+    message = 'You decided to heal '
+    if p == chats[chat_id].doctor:
+        message += 'yourself'
+    else:
+        message += p.markdown_link
+
+    await query.answer()
+    await query.edit_message_text(text=message,
+                                  parse_mode='MarkdownV2')
+
 
 # mutes/unmutes players on night/day
 async def change_players_permissions(chat_id, context, game_id=None, mute=True, all=False):
@@ -532,6 +565,22 @@ async def update_registration_message(chat_id, context):
                                         parse_mode='MarkdownV2')
 
 
+def handle_all_voted(chat_id, when, context):
+    if chats[chat_id].voted == chats[chat_id].max_voters:
+        remove_job_if_exists(f'{chat_id}_{when}', context)
+
+        if when == 'day':
+            cor = day
+        else:
+            cor = night
+        
+        context.job_queue.run_once(cor, 
+                                   5, 
+                                   data=chats[chat_id].game_id, 
+                                   name=f'{chat_id}_{when}',
+                                   chat_id=chat_id)
+
+
 async def check_game_finish(chat_id, context, when):
     game_ending = chats[chat_id].check_game_ended(when)
 
@@ -540,12 +589,10 @@ async def check_game_finish(chat_id, context, when):
 
     if game_ending == GameStatus.INNOCENTS_WON:
         game_finished_message = 'Innocents have won!'
-        if chats[chat_id].detective is not None:
-            game_finished_message += f'\nDetective: {chats[chat_id].detective.name}'
+        game_finished_message += chats[chat_id].get_innocents_leaders_names()
     elif game_ending == GameStatus.MAFIA_WON:
-        game_finished_message = 'Mafia has won!\nLeft mafioso:'
-        for m in chats[chat_id].mafioso.values():
-            game_finished_message += '\n' + m.name
+        game_finished_message = 'Mafia has won!'
+        game_finished_message += chats[chat_id].get_villains_names()
     else:
         game_finished_message = "It's a draw.\n"
         game_finished_message += f'Detective: {chats[chat_id].detective.name}\n'
@@ -571,7 +618,7 @@ def ignore_query(chat_id, game_id, player_id, who, check_num):
         return True
     
     # if query came too late, but game is still going on
-    if (who == 'maf' or 'det' in who) and chats[chat_id].game_status != GameStatus.NIGHT:
+    if (who == 'maf' or 'det' in who or who == 'doc') and chats[chat_id].game_status != GameStatus.NIGHT:
         return True
     if chats[chat_id].nights_passed != check_num:
         return True
@@ -603,6 +650,7 @@ if __name__ == '__main__':
     application.add_handler(CommandHandler('stop', stop))
     application.add_handler(CallbackQueryHandler(voting_callback, pattern='^-\d+_\d+_maf_\d+_\d+$'))
     application.add_handler(CallbackQueryHandler(voting_callback, pattern='^-\d+_\d+_dayvote_\d+_\d+$'))
+    application.add_handler(CallbackQueryHandler(doctor_callback, pattern='^-\d+_\d+_doc_\d+_\d+$'))
     application.add_handler(CallbackQueryHandler(detective_action_choice_callback, pattern='^-\d+_\d+_det(?:kill|check)_\d+_$'))
     application.add_handler(CallbackQueryHandler(detective_player_choice_callback, pattern='^-\d+_\d+_det(?:kill|check)_\d+_\d+$'))
 

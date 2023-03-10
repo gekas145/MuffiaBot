@@ -18,6 +18,7 @@ class PlayerRole(str, Enum):
     INNOCENT = 'Innocent'
     DETECTIVE = 'Detective'
     MAFIOSO = 'Mafioso'
+    DOCTOR = 'Doctor'
 
 
 class Player:
@@ -53,6 +54,7 @@ class Chat:
         self.players = {}
         self.mafioso = {}
         self.detective = None
+        self.doctor = None
         self.query_header = f'{self.id}_{self.game_id}'
         self.killed_players = []
         self.max_voters = 0
@@ -71,10 +73,13 @@ class Chat:
         else:
             mafiosi_num = 1
         
-        mafiosi_id, detective_id = roles_indices(self.players.keys(), mafiosi_num, 1)
+        mafiosi_id, detective_id, doctor_id = roles_indices(self.players.keys(), mafiosi_num, 1, 1)
 
         self.players[detective_id].role = PlayerRole.DETECTIVE
         self.detective = self.players[detective_id]
+
+        self.players[doctor_id].role = PlayerRole.DOCTOR
+        self.doctor = self.players[doctor_id]
 
         if isinstance(mafiosi_id, int):
             mafiosi_id = [mafiosi_id]
@@ -115,13 +120,51 @@ class Chat:
                      callback_data=f'{self.query_header}_{action}_{self.nights_passed}_{p.id}')]\
                      for p in self.players.values() if p.id != self.detective]
         return InlineKeyboardMarkup(keyboard)
+
+    def build_doctor_keyboard(self):
+        keyboard = [[InlineKeyboardButton(p.name, 
+                     callback_data=f'{self.query_header}_doc_{self.nights_passed}_{p.id}')]\
+                     for p in self.players.values() if p.id != self.doctor]
+        
+        keyboard.append([InlineKeyboardButton('Yourself', 
+                        callback_data=f'{self.query_header}_doc_{self.nights_passed}_{self.doctor.id}')])
+        
+        return InlineKeyboardMarkup(keyboard)
+    
     
     def build_general_keyboard(self, id):
         keyboard = [[InlineKeyboardButton(p.name, 
                      callback_data=f'{self.query_header}_dayvote_{self.nights_passed}_{p.id}')] for p in self.players.values() if p.id != id]
+        
         keyboard.append([InlineKeyboardButton('Skip vote', 
                          callback_data=f'{self.query_header}_dayvote_{self.nights_passed}_0')])
+        
         return InlineKeyboardMarkup(keyboard)
+    
+    def get_night_voters(self):
+        voters = list(self.mafioso.values())
+
+        if self.detective:
+            voters.append(self.detective)
+
+        if self.doctor:
+            voters.append(self.doctor)
+        
+        return voters
+
+    def get_villains_names(self):
+        villains_names = '\nLeft mafioso:'
+        for m in self.mafioso.values():
+            villains_names += '\n' + m.name
+        return villains_names
+    
+    def get_innocents_leaders_names(self):
+        innocents_leaders_names = ''
+        if self.detective:
+            innocents_leaders_names += f'\nDetective: {self.detective.name}'
+        if self.doctor:
+            innocents_leaders_names += f'\nDoctor: {self.doctor.name}'
+        return innocents_leaders_names
     
     # called after night mafia vote
     # returns reference to player with more than 50% votes
@@ -139,19 +182,27 @@ class Chat:
         return None
     
     def get_detective_victim(self):
-        if self.detective is not None and self.detective.chosen_player_id is not None:
+        if self.detective and self.detective.chosen_player_id:
             return self.players[self.detective.chosen_player_id]
+        return None
+    
+    def get_doctor_choice(self):
+        if self.doctor and self.doctor.chosen_player_id:
+            return self.players[self.doctor.chosen_player_id]
         return None
     
     def get_night_victims(self):
         mafia_victim = self.get_mafia_victim()
         detective_victim = self.get_detective_victim()
+        doctor_choice = self.get_doctor_choice()
 
         victims = []
         if mafia_victim:
             victims.append(mafia_victim)
         if detective_victim and detective_victim != mafia_victim:
             victims.append(detective_victim)
+        
+        victims = [victim for victim in victims if victim != doctor_choice]
         
         return victims
         
@@ -177,6 +228,8 @@ class Chat:
                 self.mafioso.pop(victim)
             elif victim == self.detective:
                 self.detective = None
+            elif victim == self.doctor:
+                self.doctor = None
     
     def check_game_ended(self, when):
         if len(self.mafioso) == 0:
@@ -189,7 +242,7 @@ class Chat:
             return GameStatus.MAFIA_WON
 
         if when == 'after_day' and self.detective is None:
-            if 2*len(self.mafioso) >= len(self.players) - 1:
+            if 2*len(self.mafioso) >= len(self.players) - 1 and not self.doctor:
                 return GameStatus.MAFIA_WON
             else:
                 return None
@@ -219,7 +272,7 @@ def get_occurences(iterable):
 def roles_indices(arr, *args):
     indices = random.sample(arr, k=sum(args))
     if len(args) == 1:
-        return indices
+        return indices[0] if len(indices) == 1 else indices
     res = []
     start = 0
     for i in args:
