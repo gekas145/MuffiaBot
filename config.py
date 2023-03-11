@@ -1,4 +1,4 @@
-from utils import PlayerRole
+from utils.enums import PlayerRole
 
 # players
 MAX_PLAYERS = 20

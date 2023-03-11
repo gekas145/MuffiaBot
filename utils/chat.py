@@ -1,49 +1,8 @@
-from enum import Enum
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, helpers
-from datetime import datetime
 import config
 import random
-
-class GameStatus(Enum):
-    REGISTRATION = 0
-    RUNNING = 1
-    DAY = 2
-    NIGHT = 3
-    MAFIA_WON = 4
-    INNOCENTS_WON = 5
-    DRAW = 6
-
-
-class PlayerRole(str, Enum):
-    INNOCENT = 'Innocent'
-    DETECTIVE = 'Detective'
-    MAFIOSO = 'Mafioso'
-    DOCTOR = 'Doctor'
-
-
-class Player:
-    def __init__(self, id, first_name, last_name):
-        self.id = id # telegram user id
-        self.name = first_name # telegram nick
-        if last_name:
-            self.name += ' ' + last_name
-        self.markdown_link = helpers.mention_markdown(self.id, self.name, version=2) # telegram markdown link to user
-        self.role = PlayerRole.INNOCENT # players with special roles will get this field updated at roles assigning
-        self.vote_message_id = None # id of last vote message
-        self.chosen_player_id = None # id of player chosen on voting
-
-    def __eq__(self, __o):
-        if isinstance(__o, int):
-            return __o == self.id
-
-        if isinstance(__o, Player):
-            return __o.id == self.id
-            
-        return False
-    
-    def __hash__(self):
-        return self.id
-
+from datetime import datetime
+from utils.enums import GameStatus, PlayerRole
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, helpers
 
 class Chat:
     def __init__(self, id, bot_username):
@@ -73,7 +32,7 @@ class Chat:
         else:
             mafiosi_num = 1
         
-        mafiosi_id, detective_id, doctor_id = roles_indices(self.players.keys(), mafiosi_num, 1, 1)
+        mafiosi_id, detective_id, doctor_id = Chat.roles_indices(self.players.keys(), mafiosi_num, 1, 1)
 
         self.players[detective_id].role = PlayerRole.DETECTIVE
         self.detective = self.players[detective_id]
@@ -171,7 +130,7 @@ class Chat:
     # None if there is no such player
     def get_mafia_victim(self):
         votes = list(map(lambda m: m.chosen_player_id, self.mafioso.values()))
-        votes = get_occurences(votes)
+        votes = Chat.get_occurences(votes)
         if len(votes) == 0:
             return None
 
@@ -211,7 +170,7 @@ class Chat:
     # same rules as with mafia voting
     def get_innocents_victim(self):
         votes = list(map(lambda p: p.chosen_player_id, self.players.values()))
-        votes = get_occurences(votes)
+        votes = Chat.get_occurences(votes)
         if len(votes) == 0:
             return None
 
@@ -255,6 +214,7 @@ class Chat:
 
 # returns dict which stores unique items from iterable as keys
 # and number of occurence of those items in iterable as values 
+@staticmethod
 def get_occurences(iterable):
     occurences = {}
     for item in iterable:
@@ -267,6 +227,7 @@ def get_occurences(iterable):
     return occurences
 
 # samples players indices for roles assigning
+@staticmethod
 def roles_indices(arr, *args):
     indices = random.sample(arr, k=sum(args))
     if len(args) == 1:
