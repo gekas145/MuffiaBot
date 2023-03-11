@@ -12,14 +12,15 @@ class Player:
         self.vote_message_id = None # id of last vote message
         self.chosen_player_id = None # id of player chosen on voting
 
-    def __eq__(self, __o):
-        if isinstance(__o, int):
-            return __o == self.id
+    def __eq__(self, other):
+        if isinstance(other, int):
+            return other == self.id
 
-        if isinstance(__o, Player):
-            return __o.id == self.id
+        if isinstance(other, Player):
+            return other.id == self.id
             
         return False
     
     def __hash__(self):
         return self.id
+    

@@ -212,32 +212,33 @@ class Chat:
             return GameStatus.MAFIA_WON
         return None
 
-# returns dict which stores unique items from iterable as keys
-# and number of occurence of those items in iterable as values 
-@staticmethod
-def get_occurences(iterable):
-    occurences = {}
-    for item in iterable:
-        if item is None:
-            continue
-        if item in occurences:
-            occurences[item] += 1
-        else:
-            occurences[item] = 1
-    return occurences
+    # returns dict which stores unique items from iterable as keys
+    # and number of occurence of those items in iterable as values 
+    @staticmethod
+    def get_occurences(iterable):
+        occurences = {}
+        for item in iterable:
+            if item is None:
+                continue
+            if item in occurences:
+                occurences[item] += 1
+            else:
+                occurences[item] = 1
+        return occurences
 
-# samples players indices for roles assigning
-@staticmethod
-def roles_indices(arr, *args):
-    indices = random.sample(arr, k=sum(args))
-    if len(args) == 1:
-        return indices[0] if len(indices) == 1 else indices
-    res = []
-    start = 0
-    for i in args:
-        if i == 1:
-            res.append(indices[start])
-        else:
-            res.append(indices[start:start + i])
-        start += i
-    return res
+    # samples players indices for roles assigning
+    @staticmethod
+    def roles_indices(arr, *args):
+        indices = random.sample(arr, k=sum(args))
+        if len(args) == 1:
+            return indices[0] if len(indices) == 1 else indices
+        res = []
+        start = 0
+        for i in args:
+            if i == 1:
+                res.append(indices[start])
+            else:
+                res.append(indices[start:start + i])
+            start += i
+        return res
+    

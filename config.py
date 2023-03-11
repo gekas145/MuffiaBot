@@ -1,5 +1,8 @@
 from utils.enums import PlayerRole
 
+
+chats = {}
+
 # players
 MAX_PLAYERS = 20
 MIN_PLAYERS = 4
