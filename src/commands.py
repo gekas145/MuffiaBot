@@ -118,3 +118,4 @@ async def register(update, context):
     
     await helpers.update_registration_message(chat_id, context)
     await context.bot.send_message(chat_id=user_id, text=successfull_registration_message)
+    

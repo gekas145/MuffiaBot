@@ -17,25 +17,25 @@ conversation_duration = 60
 day_voting_duration = 20
 
 # bot messages
-greetings = {PlayerRole.MAFIOSO : 'You are *Mafioso*\.\n'\
-                                  'Your main goal is to eliminate innocents\.\n'\
-                                  "Good luck and don't let other players guess who you are\!",
-            PlayerRole.INNOCENT: 'You are *Innocent*\.\n'\
-                                  "There's not much you can do to stop mafia\,\n"\
-                                  'but if you cooperate with other innocents your city might stand a chance\.',
-            PlayerRole.DETECTIVE: 'You are *Detective*\,\n'\
+greetings = {PlayerRole.MAFIOSO : f'You are *{PlayerRole.MAFIOSO}*\.\n'\
+                                   'Your main goal is to eliminate innocents\.\n'\
+                                   "Good luck and don't let other players guess who you are\!",
+            PlayerRole.INNOCENT:  f'You are *{PlayerRole.INNOCENT}*\.\n'\
+                                   "There's not much you can do to stop mafia\,\n"\
+                                   'but if you cooperate with other innocents your city might stand a chance\.',
+            PlayerRole.DETECTIVE: f'You are *{PlayerRole.DETECTIVE}*\,\n'\
                                    "the only hope of this city in fight against mafia\.\n"\
                                    'Good luck\!',
-            PlayerRole.DOCTOR: 'You are *Doctor*\,\n'\
-                                'you can heal players killed during the night\.\n'\
-                                "Beware of helping mafia and also don't be too selfish\!"}
+            PlayerRole.DOCTOR:    f'You are *{PlayerRole.DOCTOR}*\,\n'\
+                                   'you can heal players killed during the night\.\n'\
+                                   "Beware of helping mafia and also don't be too selfish\!"}
 
 help_message = 'Hi there, I am *MuffiaBot*\n'\
-                'I understand theese commands:\n'\
-                '• /help \- display this help message\n'\
-                '• /start \- start registration\n'\
-                '• /begin \- finish registration and start game\n'\
-                '• /stop \- stop game'\
+               'I understand theese commands:\n'\
+               '• /help \- display this help message\n'\
+               '• /start \- start registration\n'\
+               '• /begin \- finish registration and start game\n'\
+               '• /stop \- stop game'\
 
 
 # starting the game

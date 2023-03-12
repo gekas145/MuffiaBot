@@ -66,4 +66,3 @@ async def send_detective_action_vote(context):
     chats[context.job.chat_id].detective.vote_message_id = message.message_id
 
     return False
-
