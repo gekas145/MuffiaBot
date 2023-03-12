@@ -104,7 +104,10 @@ async def check_game_finish(chat_id, context, when):
         game_finished_message += chats[chat_id].get_villains_names()
     else:
         game_finished_message = "It's a draw.\n"
-        game_finished_message += f'Detective: {chats[chat_id].detective.name}\n'
+        if chats[chat_id].detective:
+            game_finished_message += f'Detective: {chats[chat_id].detective.name}\n'
+        else:
+            game_finished_message += f'Doctor: {chats[chat_id].doctor.name}\n'
         game_finished_message += f'Mafioso: {list(chats[chat_id].mafioso.values())[0].name}'
 
     # as this function will be called in each case if game has to finish, it was placed here
@@ -120,3 +123,4 @@ async def handle_game_finish(chat_id, context):
     await handle_voters(chats[chat_id].players.values(), context)
     await change_players_permissions(chat_id, context, mute=False, all=True)
     del chats[chat_id]
+    
