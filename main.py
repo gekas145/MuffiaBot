@@ -7,8 +7,8 @@ logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s
 
 
 if __name__ == '__main__':
-    TELEGRAM_API_KEY = os.getenv('TELEGRAM_API_KEY')
-    application = ApplicationBuilder().token(TELEGRAM_API_KEY).build()
+    TELEGRAM_API_TOKEN = os.getenv('TELEGRAM_API_TOKEN')
+    application = ApplicationBuilder().token(TELEGRAM_API_TOKEN).build()
 
     application.add_handler(CommandHandler('help', commands.help))
     application.add_handler(CommandHandler('start', commands.register, filters.Regex('-\d+')))
