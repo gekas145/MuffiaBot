@@ -228,8 +228,8 @@ class Chat:
 
     # samples players indices for roles assigning
     @staticmethod
-    def roles_indices(arr, *args):
-        indices = random.sample(arr, k=sum(args))
+    def roles_indices(iterable, *args):
+        indices = random.sample(iterable, k=sum(args))
         if len(args) == 1:
             return indices[0] if len(indices) == 1 else indices
         res = []
