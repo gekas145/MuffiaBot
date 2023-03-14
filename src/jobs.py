@@ -59,17 +59,17 @@ async def night(context):
         
         victim = chats[chat_id].get_innocents_victim()
 
-        summary_message = 'Day vote has ended\n'
+        summary_message = 'Day vote has ended'
         if victim is not None:
-            summary_message += f'{victim.markdown_link} was lynched, he was *{victim.role}*\n'
+            summary_message += f'\n{victim.markdown_link} was lynched, he was *{victim.role}*'
             chats[chat_id].handle_victims([victim])
         else:
-            summary_message += 'Nobody was lynched\n'
+            summary_message += '\nNobody was lynched'
         
         for p in chats[chat_id].players.values():
             p.chosen_player_id = None
         
-        summary_message += 'Remaining players:\n' + chats[chat_id].get_alive_players_description()
+        summary_message += '\nRemaining players:' + chats[chat_id].alive_players_links()
         
         await context.bot.send_message(chat_id=chat_id, text=summary_message, parse_mode='MarkdownV2')
         await asyncio.sleep(5)

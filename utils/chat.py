@@ -55,13 +55,6 @@ class Chat:
             return other.id == self.id
             
         return False
-    
-    def get_alive_players_description(self):
-        description = ''
-        for i, player in enumerate(self.players.values()):
-            description += f'{i+1}\. {player.markdown_link}\n'
-
-        return description
 
     def build_mafiosi_keyboard(self):
         victims = [player for player in self.players.values() if player not in self.mafioso]
@@ -110,19 +103,26 @@ class Chat:
             voters.append(self.doctor)
         
         return voters
+    
+    def alive_players_links(self):
+        names = ''
+        for i, player in enumerate(self.players.values()):
+            names += f'\n{i+1}\. {player.markdown_link}'
 
-    def get_villains_names(self):
-        villains_names = '\nLeft mafioso:'
-        for m in self.mafioso.values():
-            villains_names += '\n' + m.name
+        return names
+
+    def villains_names(self):
+        villains_names = f'\n{PlayerRole.MAFIOSO}: '
+        mafioso_names = list(map(lambda m: m.name, self.mafioso.values()))
+        villains_names += ', '.join(mafioso_names)
         return villains_names
     
-    def get_innocents_leaders_names(self):
+    def innocents_leaders_names(self):
         innocents_leaders_names = ''
         if self.detective:
-            innocents_leaders_names += f'\nDetective: {self.detective.name}'
+            innocents_leaders_names += f'\n{PlayerRole.DETECTIVE}: {self.detective.name}'
         if self.doctor:
-            innocents_leaders_names += f'\nDoctor: {self.doctor.name}'
+            innocents_leaders_names += f'\n{PlayerRole.DOCTOR}: {self.doctor.name}'
         return innocents_leaders_names
     
     # called after night mafia vote

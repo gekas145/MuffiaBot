@@ -68,3 +68,49 @@ class ChatTestStaticMethods(TestCase):
         for i in range(len(arrs)):
             check(Chat.roles_indices(arrs[i], *args[i]), i)
             
+
+
+class ChatTestPlayersDescription(TestCase):
+    
+    @classmethod
+    def setUp(cls):
+        cls._chat = Chat(123, 'botname')
+
+    def test_villains_names(self):
+        ChatTestPlayersDescription._chat.mafioso[1] = Player(1, 'John', None)
+        self.assertEqual('\nMafioso: John', 
+                         ChatTestPlayersDescription._chat.villains_names())
+
+        ChatTestPlayersDescription._chat.mafioso[2] = Player(2, 'John', 'Doe')
+        self.assertEqual('\nMafioso: John, John Doe', 
+                         ChatTestPlayersDescription._chat.villains_names())
+        
+
+    def test_innocents_leaders_names(self):
+        detective = Player(1, 'John', 'Doe')
+        doctor = Player(2, 'John', None)
+
+        ChatTestPlayersDescription._chat.detective = detective
+        self.assertCountEqual('\nDetective: John Doe', 
+                              ChatTestPlayersDescription._chat.innocents_leaders_names())
+
+        ChatTestPlayersDescription._chat.detective = None
+        ChatTestPlayersDescription._chat.doctor = doctor
+        self.assertCountEqual('\nDoctor: John', 
+                              ChatTestPlayersDescription._chat.innocents_leaders_names())
+
+        ChatTestPlayersDescription._chat.detective = detective
+        self.assertCountEqual('\nDetective: John Doe\nDoctor: John', 
+                              ChatTestPlayersDescription._chat.innocents_leaders_names())
+        
+    
+    def test_alive_players_links(self):
+        ChatTestPlayersDescription._chat.players[1] = Player(1, 'John', 'Doe')
+        ChatTestPlayersDescription._chat.players[2] = Player(2, 'John', None)
+        ChatTestPlayersDescription._chat.players[3] = Player(3, 'John', 'John')
+
+        self.assertEqual('\n1\. [John Doe](tg://user?id=1)'\
+                         '\n2\. [John](tg://user?id=2)'\
+                         '\n3\. [John John](tg://user?id=3)',
+                         ChatTestPlayersDescription._chat.alive_players_links())
+

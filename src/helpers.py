@@ -5,7 +5,7 @@ from utils.enums import GameStatus
 
 # updates registration message with nicknames of newly joined users
 async def update_registration_message(chat_id, context):
-    text = game_start_message + '\nRegistered players:\n' + chats[chat_id].get_alive_players_description()
+    text = game_start_message + '\nRegistered players:' + chats[chat_id].alive_players_links()
     await context.bot.edit_message_text(chat_id=chat_id,
                                         message_id=chats[chat_id].registration_message_id,
                                         text=text,
@@ -98,17 +98,14 @@ async def check_game_finish(chat_id, context, when):
 
     if game_ending == GameStatus.INNOCENTS_WON:
         game_finished_message = 'Innocents have won!'
-        game_finished_message += chats[chat_id].get_innocents_leaders_names()
+        game_finished_message += chats[chat_id].innocents_leaders_names()
     elif game_ending == GameStatus.MAFIA_WON:
         game_finished_message = 'Mafia has won!'
-        game_finished_message += chats[chat_id].get_villains_names()
+        game_finished_message += chats[chat_id].villains_names()
     else:
-        game_finished_message = "It's a draw.\n"
-        if chats[chat_id].detective:
-            game_finished_message += f'Detective: {chats[chat_id].detective.name}\n'
-        else:
-            game_finished_message += f'Doctor: {chats[chat_id].doctor.name}\n'
-        game_finished_message += f'Mafioso: {list(chats[chat_id].mafioso.values())[0].name}'
+        game_finished_message = "It's a draw."
+        game_finished_message += chats[chat_id].innocents_leaders_names()
+        game_finished_message += chats[chat_id].villains_names()
 
     # as this function will be called in each case if game has to finish, it was placed here
     await handle_game_finish(chat_id, context)
