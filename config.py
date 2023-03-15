@@ -4,10 +4,10 @@ from utils.enums import PlayerRole
 chats = {}
 
 # players
-MAX_PLAYERS = 20
-MIN_PLAYERS = 4
-MIN_PLAYERS_FOR_2_MAFIOSO = 10
-MIN_PLAYERS_FOR_3_MAFIOSO = 15
+MAX_PLAYERS = 25
+MIN_PLAYERS = 7
+MIN_PLAYERS_FOR_2_MAFIOSO = 12
+MIN_PLAYERS_FOR_3_MAFIOSO = 18
 
 
 # delays(in seconds)
