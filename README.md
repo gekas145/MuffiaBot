@@ -10,21 +10,21 @@ Add this bot to group chat, preferably granting him admin rights. On `/start` co
 
 ## Rules
 
-On game beginning each player gets a role. There is usually 1 `Detective`, 1/2/3(depending on number of players) `Mafioso`, all other players are `Innocent`.
+On game beginning each player gets a role. Roles can be divided into 2 groups: innocents(`Innocent`, `Detective`, `Doctor`) and villains(`Mafioso`). Innocents aim to free their city from villains and villains want to eliminate innocents, so that they start to dominate.
 
 Game itself has 2 phases: night and day. 
 
 ### Night
 
-During the night players with special abilities(`Detective`, `Doctor`, `Mafioso`) are asked by the bot to perform some actions, e.g. `Mafia` votes for their victim. 
+During the night players with special abilities(`Detective`, `Doctor`, `Mafioso`) are asked by the bot to perform some actions, e.g. `Mafioso` vote for their victim. 
 
 ### Day
 
-During the day night victims names are displayed in group chat along with their roles and all alive players have time to chat and determine who is `Mafioso`, the day ends with lynching vote. Only player receiving more than a half of all possible votes gets lynched with his role revealed. 
+During the day night victims names are displayed in group chat along with their roles and all alive players have time to debate and determine who is `Mafioso`, the day ends with lynching vote. Only player receiving more than a half of all possible votes gets lynched with his role revealed. 
 
 ### Game end
 
-The game continues till all `Mafioso` are killed off or they start to dominate.
+The game continues till all villains are killed off or they start to dominate.
 
 ### Roles
 
